@@ -1,3 +1,4 @@
+import json
 import random
 import aiogram
 import sqlite3
@@ -8,7 +9,11 @@ from aiogram.utils import executor
 from aiogram.utils.exceptions import BadRequest
 import asyncio
 
-TOKEN = '0000000000:0000000000000000000000000000000000'
+with open('config.json', 'r') as file:
+    config = json.load(file)
+
+TOKEN = config['TOKEN']
+ADMIN_ID = config['ADMIN_ID']
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
@@ -19,11 +24,15 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS user_values
                   chat_id INTEGER, 
                   value INTEGER, 
                   PRIMARY KEY(user_id, chat_id))''')
+
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_cooldowns (
                   user_id INTEGER,
                   chat_id INTEGER,
+                  command TEXT,
                   last_used TIMESTAMP,
-                  PRIMARY KEY(user_id, chat_id))''')
+                  PRIMARY KEY(user_id, chat_id, command))''')
+
+
 cursor.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
 
 cooldowns = {}
@@ -35,7 +44,7 @@ def add_chat(chat_id):
 #/message-----
 @dp.message_handler(commands=['message'])
 async def broadcast_message(message: types.Message):
-    if message.from_user.id != 000000000:
+    if message.from_user.id != ADMIN_ID:
         return
 
     text_to_send = message.text.split(" ", 1)[1]
@@ -117,6 +126,65 @@ async def get_user_info(chat_id, user_id):
         print(f"Помилка отримання користувача: {e}")
         return None
 
+#/give-----
+@dp.message_handler(commands=['give'])
+async def give_benis(message: types.Message):
+    if message.reply_to_message and message.from_user.id != message.reply_to_message.from_user.id:
+        parts = message.text.split()
+        if len(parts) != 2:
+            await message.reply("⚙️ Неправильний формат. Використовуй /give <значення> у відповідь на повідомлення")
+            return
+
+        try:
+            value = int(parts[1])
+            if value <= 0:
+                raise ValueError
+            
+        except ValueError:
+            await message.reply("🤨 Типо розумний? Введи позитивне число")
+            return
+
+        giver_id = message.from_user.id
+        receiver_id = message.reply_to_message.from_user.id
+        chat_id = message.chat.id
+        now = datetime.now()
+
+        cursor.execute('SELECT command FROM user_cooldowns WHERE user_id = ? AND chat_id = ? AND command IS NOT NULL', 
+                       (giver_id, chat_id))
+        last_given = cursor.fetchone()
+
+        if last_given:
+            last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S.%f')
+            if last_given + timedelta(hours=12) > now:
+                cooldown_time = (last_given + timedelta(hours=12)) - now
+                cooldown_time = str(cooldown_time).split('.')[0]
+                await message.reply(f"ℹ️ Ти ще не можеш передати русофобію. Спробуй через {cooldown_time}")
+                return
+
+        cursor.execute('UPDATE user_cooldowns SET command = ? WHERE user_id = ? AND chat_id = ?', 
+                       (str(now), giver_id, chat_id))
+        conn.commit()
+
+        cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, chat_id))
+        result = cursor.fetchone()
+        if not result or result[0] < value:
+            await message.reply(f"😯 У тебе {result[0] if result else 0} кг. Цього недостатньо")
+            return
+
+        cursor.execute('UPDATE user_values SET value = value - ? WHERE user_id = ? AND chat_id = ?', 
+                       (value, giver_id, chat_id))
+        cursor.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?) ON CONFLICT(user_id, chat_id) DO UPDATE SET value = value + ?', 
+                       (receiver_id, chat_id, value, value))
+        conn.commit()
+
+        # Получаем обновленное значение русофобии дарителя
+        cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, chat_id))
+        updated_benis = cursor.fetchone()[0]
+
+        await message.reply(f"✅ Ти передав {value} кг русофобії @{message.reply_to_message.from_user.username if message.reply_to_message.from_user.username else message.reply_to_message.from_user.first_name}. Залишок: {updated_benis} кг.")
+    else:
+        await message.reply("⚙️ Ділитися русофобією потрібно у відповідь на повідомлення")
+
 #/top10-----
 @dp.message_handler(commands=['top10'])
 async def show_top_benis(message: types.Message):
@@ -168,7 +236,7 @@ async def show_top_benis(message: types.Message):
 #/edit-----
 @dp.message_handler(commands=['edit'])
 async def edit_benis(message: types.Message):
-    if message.from_user.id != 000000000:
+    if message.from_user.id != ADMIN_ID:
         return
 
     try:
@@ -202,7 +270,7 @@ async def edit_benis(message: types.Message):
 #/statareset-----
 @dp.message_handler(commands=['statareset'])
 async def reset_user_value(message: types.Message):
-    admin_id = 000000000
+    admin_id = ADMIN_ID
 
     if message.from_user.id == admin_id and message.reply_to_message:
         user_id = message.reply_to_message.from_user.id
@@ -229,6 +297,7 @@ async def send_message(message: types.Message):
     await message.reply("🎮*Розвивай свою русофобію. Зростай її щодня, і змагайся з друзями*"+
         "\n\n*/killru* — _Спробувати підвищити свою русофобію._"+
         "\n*/my* — _Моя русофобія._"+
+        "\n*/give* — _Поділиться русофобією._"+
         "\n*/top10* — _Топ 10 гравців._"+
         "\n*/top* — _Топ гравців._"+
         "\n*/statareset* — _Скинути мою статистику._", parse_mode="Markdown")

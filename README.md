@@ -15,11 +15,15 @@ $ cd Sofia
 
 Configuring
 ------------
-**Open the `config.yaml` configuration file in a text editor and set the token on line 11 and your ID on lines 38, 171, 205:**
+**Open the `config.json` configuration file in a text editor and change the values to your own:**
 ```ini
-TOKEN = '0000000000:0000000000000000000000000000000000'
+{
+    "TOKEN": "0000000000:0000000000000000000000000000000000",
+    "ADMIN_ID": 000000000
+}
 ```
 * `TOKEN` is token for your Telegram bot. You can get it here: [BotFather](https://t.me/BotFather)
+* `ADMIN_ID` is your ID
 
 Running
 ------------
