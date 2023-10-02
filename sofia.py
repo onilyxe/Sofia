@@ -177,7 +177,6 @@ async def give_benis(message: types.Message):
                        (receiver_id, chat_id, value, value))
         conn.commit()
 
-        # Получаем обновленное значение русофобии дарителя
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, chat_id))
         updated_benis = cursor.fetchone()[0]
 
