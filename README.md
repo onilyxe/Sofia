@@ -1,5 +1,5 @@
 # Sofia for Telegram
-Entertainment bot with special functionality
+Entertainment bot
 
 [Try the my bot](https://t.me/sofiarolbot)
 
