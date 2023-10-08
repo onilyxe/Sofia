@@ -19,11 +19,16 @@ Configuring
 ```ini
 {
     "TOKEN": "0000000000:0000000000000000000000000000000000",
-    "ADMIN_ID": 000000000
+    "ADMIN_ID": 000000000,
+    "CHAT_ALIASES": 
+    {
+        "alias": -1000000000000
+    }
 }
 ```
 * `TOKEN` is token for your Telegram bot. You can get it here: [BotFather](https://t.me/BotFather)
 * `ADMIN_ID` is your ID
+* `CHAT_ALIASES` Aliases for the chat ID so you don't have to type it in
 
 Running
 ------------

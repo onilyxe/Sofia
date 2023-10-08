@@ -4,22 +4,24 @@ import sqlite3
 import asyncio
 import random
 import json
-from aiogram.utils.exceptions import BadRequest
+from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted
 from aiogram.dispatcher import filters
 from aiogram.types import CallbackQuery, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types
+from asyncio import sleep
 
 try:
     with open('config.json', 'r') as file:
         config = json.load(file)
-except (FileNotFoundError, json.JSONDecodeError) as e:
+        TOKEN = config['TOKEN']
+        ADMIN = config['ADMIN_ID']
+        CHAT_ALIASES = config.get('CHAT_ALIASES', {})
+except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
     print(f"Error loading config file: {e}")
     exit()
 
-TOKEN = config['TOKEN']
-ADMIN = config['ADMIN_ID']
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
@@ -50,19 +52,36 @@ def add_chat(chat_id):
 @dp.message_handler(commands=['start'])
 async def send_message(message: types.Message):
     add_chat(message.chat.id)
-    await message.reply("🫡 Привіт. Я бот для розваг\nВивчай /help")
+    reply = await message.reply("🫡 Привіт. Я бот для розваг\nВивчай /help")
+    
+    await asyncio.sleep(300)
+
+    try:
+        await bot.delete_message(message.chat.id, message.message_id)
+        await bot.delete_message(message.chat.id, reply.message_id)
+    except MessageCantBeDeleted:
+            pass
 
 #/help-----
 @dp.message_handler(commands=['help'])
 async def send_message(message: types.Message):
-    await message.reply("🎮 *Розвивай свою русофобію. Зростай її щодня, і змагайся з друзями*"+
-        "\n\n*/killru* — _Спробувати підвищити свою русофобію_"+
-        "\n*/my* — _Моя русофобія_"+
-        "\n*/give* — _Поділиться русофобією_"+
-        "\n*/globaltop* — _Топ всіх гравців_"+
-        "\n*/top10* — _Топ 10 гравців_"+
-        "\n*/top* — _Топ гравців_"+
+    reply = await message.reply(
+        "🎮 *Розвивай свою русофобію. Зростай її щодня, і змагайся з друзями*" +
+        "\n\n*/killru* — _Спробувати підвищити свою русофобію_" +
+        "\n*/my* — _Моя русофобія_" +
+        "\n*/give* — _Поділиться русофобією_" +
+        "\n*/globaltop* — _Топ всіх гравців_" +
+        "\n*/top10* — _Топ 10 гравців_" +
+        "\n*/top* — _Топ гравців_" +
         "\n*/statareset* — _Скинути мою статистику_", parse_mode="Markdown")
+
+    await asyncio.sleep(300)
+
+    try:
+        await bot.delete_message(message.chat.id, message.message_id)
+        await bot.delete_message(message.chat.id, reply.message_id)
+    except MessageCantBeDeleted:
+        pass
 
 #/message-----
 @dp.message_handler(commands=['message'])
@@ -70,37 +89,118 @@ async def broadcast_message(message: types.Message):
     if message.from_user.id != ADMIN:
         return
 
-    text_to_send = message.text.split(" ", 1)[1]
-    cursor.execute('SELECT chat_id FROM chats')
-    chat_ids = cursor.fetchall()
+    parts = message.text.split(" ", 2)
+    
+    if len(parts) < 2:
+        info_message = await message.reply("ℹ️ Ця команда дозволяє розсилати повідомлення у різні чати\n`/message <text>` - в усі чати\n`/message <ID>/<alias> <text>` - в один чат", parse_mode="Markdown")
+        await asyncio.sleep(300)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=info_message.message_id)
+        except MessageCantBeDeleted:
+            pass
+        return
+    
+    chat_id_to_send = None
+    text_to_send = None
+    if len(parts) == 3:
+        if parts[1].startswith('-100') or parts[1].lower() in CHAT_ALIASES:
+            chat_id_to_send = int(parts[1]) if parts[1].startswith('-100') else CHAT_ALIASES[parts[1].lower()]
+            text_to_send = parts[2]
+        else:
+            text_to_send = " ".join(parts[1:])
+    else:
+        text_to_send = parts[1]
+
+    if not text_to_send.strip():
+        error_message = await message.reply("⚠️ Текст повідомлення не може бути пустим")
+        await asyncio.sleep(300)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=error_message.message_id)
+        except MessageCantBeDeleted:
+            pass
+        return
 
     successful_sends = 0
-    for chat_id in chat_ids:
+    error_messages = ""
+    if chat_id_to_send:
         try:
-            await bot.send_message(chat_id[0], text_to_send)
+            await bot.send_message(chat_id_to_send, text_to_send)
             successful_sends += 1
         except Exception as e:
-            print(f"Помилка під час розсилки в чат {chat_id[0]}: {e}")
+            error_message = f"`{chat_id_to_send}`: _{e}_"
+            error_messages += error_message + "\n"
+    else:
+        cursor.execute('SELECT chat_id FROM chats')
+        chat_ids = cursor.fetchall()
+        for chat_id in chat_ids:
+            try:
+                await bot.send_message(chat_id[0], text_to_send)
+                successful_sends += 1
+            except Exception as e:
+                error_message = f"`{chat_id[0]}`: _{e}_"
+                error_messages += error_message + "\n"
 
-    await message.reply(f"🆒 Повідомлення надіслано. Кількість чатів: `{successful_sends}`", parse_mode="Markdown")
+    reply_text = f"🆒 Повідомлення надіслано. Кількість чатів: `{successful_sends}`"
+    if error_messages:
+        reply_text += "\n\n⚠️ Помилки:\n" + error_messages
+
+    await message.reply(reply_text, parse_mode="Markdown")
+    await asyncio.sleep(300)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except MessageCantBeDeleted:
+        pass
 
 #/statareset-----
 @dp.message_handler(commands=['statareset'])
 async def reset_user_value(message: types.Message):
     admin = ADMIN
+    parts = message.text.split()
 
-    if message.from_user.id == admin and message.reply_to_message:
-        user_id = message.reply_to_message.from_user.id
-        cursor.execute('UPDATE user_values SET value = 0 WHERE user_id = ?', (user_id,))
-        conn.commit()
-        await message.reply(f"📡 Статистика `{user_id}` обнулена", parse_mode="Markdown")
-    elif message.from_user.id != admin and not message.reply_to_message:
-        user_id = message.from_user.id
-        cursor.execute('UPDATE user_values SET value = 0 WHERE user_id = ?', (user_id,))
-        conn.commit()
-        await message.reply("📡 Твою статистику обнулено")
+    if message.from_user.id == admin:
+        if message.reply_to_message:
+            user_id = message.reply_to_message.from_user.id
+            username = message.reply_to_message.from_user.username
+            if username:
+                mention = f'[{username}](https://t.me/{username})'
+            else:
+                mention = message.reply_to_message.from_user.first_name
+        elif len(parts) > 1 and parts[1].isdigit():
+            user_id = int(parts[1])
+            mention = f'UserID {user_id}'
+        else:
+            error_message = await message.reply("📡 Кого караємо?")
+            await asyncio.sleep(300)
+            try:
+                await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                await bot.delete_message(chat_id=message.chat.id, message_id=error_message.message_id)
+            except MessageCantBeDeleted:
+                pass
+            return
     else:
-        await message.reply("📡 Кого караємо?")
+        user_id = message.from_user.id
+        username = message.from_user.username
+        if username:
+            mention = f'[{username}](https://t.me/{username})'
+        else:
+            mention = message.from_user.first_name
+
+    cursor.execute('UPDATE user_values SET value = 0 WHERE user_id = ?', (user_id,))
+    conn.commit()
+    await bot.send_message(
+        chat_id=message.chat.id, 
+        text=f"📡 Статистика {mention} обнулена", 
+        parse_mode="Markdown",
+        disable_web_page_preview=True
+    )
+
+    await asyncio.sleep(300)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except MessageCantBeDeleted:
+        pass
 
 #/killru-----
 @dp.message_handler(commands=['killru'])
@@ -110,26 +210,38 @@ async def get_benis(message: types.Message):
     chat_id = message.chat.id
     now = datetime.now()
 
+    username_or_name = ('[' + message.from_user.username + ']' + '(https://t.me/' + message.from_user.username + ')') if message.from_user.username else message.from_user.first_name
+
     cursor.execute('SELECT killru FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     result = cursor.fetchone()
 
     if result:
-        killru = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S.%f')
-        if killru + timedelta(hours=24) > now:
+        if result[0]:
+            killru = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S.%f')
+        else:
+            killru = None
+        if killru and killru + timedelta(hours=24) > now:
             cooldown_time = (killru + timedelta(hours=24)) - now
             cooldown_time = str(cooldown_time).split('.')[0]
-            await message.reply(f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
+            warning_message = await message.reply(f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
+            
+            await sleep(300)
+            try:
+                await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                await bot.delete_message(chat_id=message.chat.id, message_id=warning_message.message_id)
+            except MessageCantBeDeleted:
+                pass
             return
     else:
         cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, str(now)))
         conn.commit()
 
-    benis = random.randint(-4, 15)
+    benis = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
     cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     result = cursor.fetchone()
 
     if result is None and benis < 0:
-       benis = abs(benis)
+        benis = abs(benis)
 
     new_benis = 0
     if result is None:
@@ -145,12 +257,19 @@ async def get_benis(message: types.Message):
     conn.commit()
 
     if benis >= 0:
-        message_text = f"📈 Твоя русофобія збільшилась на `{benis}` кг"
+        message_text = f"📈 {username_or_name}, твоя русофобія збільшилась на `{benis}` кг"
     else:
-        message_text = f"📉 Твоя русофобія зменшилась на `{abs(benis)}` кг"
+        message_text = f"📉 {username_or_name}, твоя русофобія зменшилась на `{abs(benis)}` кг"
 
     message_text += f" \n🏷️ Тепер в тебе: `{new_benis}` кг"
-    await message.reply(message_text, parse_mode="Markdown")
+    reply = await bot.send_message(chat_id=message.chat.id, text=message_text, parse_mode="Markdown", disable_web_page_preview=True)
+    
+    await asyncio.sleep(300)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except MessageCantBeDeleted:
+        pass
+
 
 #/my-----
 @dp.message_handler(commands=['my'])
@@ -160,11 +279,23 @@ async def show_my_benis(message: types.Message):
     cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     result = cursor.fetchone()
 
+    if message.from_user.username:
+        mention = f"[{message.from_user.username}](https://t.me/{message.from_user.username})"
+    else:
+        mention = message.from_user.first_name
+
     if result is None:
-        await message.reply('😯 Ти ще не грав')
+        response = await message.reply(f'😯 {mention}, ти ще не грав', parse_mode="Markdown")
     else:
         benis = result[0]
-        await message.reply(f"😡 Твоя русофобія: `{benis}` кг", parse_mode="Markdown")
+        response = await message.reply(f"😡 {mention}, твоя русофобія: `{benis}` кг", parse_mode="Markdown", disable_web_page_preview=True)
+
+    await asyncio.sleep(300)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
+    except MessageCantBeDeleted:
+        pass
 
 #/top-----
 async def show_top(message: types.Message, limit: int, title: str):
@@ -173,30 +304,36 @@ async def show_top(message: types.Message, limit: int, title: str):
     results = cursor.fetchall()
 
     if len(results) == 0:
-        await message.reply('😯 Ще ніхто не грав')
-        return
+        response = await message.reply('😯 Ще ніхто не грав')
+    else:
+        async def fetch_username(user_id):
+            try:
+                user_info = await bot.get_chat_member(chat_id, user_id)
+                if user_info.user.username:
+                    return f'[{user_info.user.username}](https://t.me/{user_info.user.username})'
+                else:
+                    return user_info.user.full_name
+            except aiogram.utils.exceptions.BadRequest:
+                return None
 
-    async def fetch_username(user_id):
-        try:
-            user_info = await bot.get_chat_member(chat_id, user_id)
-            if user_info.user.username:
-                return f'[{user_info.user.username}](https://t.me/{user_info.user.username})'
-            else:
-                return user_info.user.full_name
-        except aiogram.utils.exceptions.BadRequest:
-            return None
+        tasks = [fetch_username(user_id) for user_id, _ in results]
+        user_names = await asyncio.gather(*tasks)
 
-    tasks = [fetch_username(user_id) for user_id, _ in results]
-    user_names = await asyncio.gather(*tasks)
+        message_text = f'{title}:\n'
+        count = 0
+        for user_name, (_, benis) in zip(user_names, results):
+            if user_name:
+                count += 1
+                message_text += f'{count}. {user_name}: {benis} кг\n'
 
-    message_text = f'{title}:\n'
-    count = 0
-    for user_name, (_, benis) in zip(user_names, results):
-        if user_name:
-            count += 1
-            message_text += f'{count}. {user_name}: {benis} кг\n'
+        response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
-    await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
+    await asyncio.sleep(300)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
+    except MessageCantBeDeleted:
+        pass
 
 @dp.message_handler(commands=['top10'])
 async def top10_handler(message: types.Message):
@@ -212,34 +349,40 @@ async def show_global_top(message: types.Message, limit: int, title: str):
     results = cursor.fetchall()
 
     if len(results) == 0:
-        await message.reply('😯 Ще ніхто не грав')
-        return
+        response = await message.reply('😯 Ще ніхто не грав')
+    else:
+        async def fetch_username(user_id):
+            try:
+                user_info = await bot.get_chat(user_id)  
+                if user_info.username:
+                    return f'[{user_info.username}](https://t.me/{user_info.username})'
+                else:
+                    return user_info.first_name  
+            except aiogram.utils.exceptions.BadRequest:
+                return None
 
-    async def fetch_username(user_id):
-        try:
-            user_info = await bot.get_chat(user_id)  
-            if user_info.username:
-                return f'[{user_info.username}](https://t.me/{user_info.username})'
-            else:
-                return user_info.first_name  
-        except aiogram.utils.exceptions.BadRequest:
-            return None
+        tasks = [fetch_username(user_id) for user_id, _ in results]
+        user_names = await asyncio.gather(*tasks)
 
-    tasks = [fetch_username(user_id) for user_id, _ in results]
-    user_names = await asyncio.gather(*tasks)
+        message_text = f'{title}:\n'
+        count = 0
+        for user_name, (_, benis) in zip(user_names, results):
+            if user_name:
+                count += 1
+                message_text += f'{count}. {user_name}: {benis} кг\n'
 
-    message_text = f'{title}:\n'
-    count = 0
-    for user_name, (_, benis) in zip(user_names, results):
-        if user_name:
-            count += 1
-            message_text += f'{count}. {user_name}: {benis} кг\n'
+        response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
-    await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
+    await asyncio.sleep(300)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
+    except MessageCantBeDeleted:
+        pass
 
 @dp.message_handler(commands=['globaltop'])
 async def global_top_handler(message: types.Message):
-    await show_global_top(message, limit=201, title='📊 Глобальний топ русофобій')
+    await show_global_top(message, limit=201, title='🌏 Глобальний топ русофобій')
 
 #/edit-----
 @dp.message_handler(commands=['edit'])
@@ -251,42 +394,93 @@ async def edit_benis(message: types.Message):
         parts = message.text.split()
         user_id = None
         chat_id = message.chat.id
-        
+        user_mention = None
+
         if message.reply_to_message:
             user_id = message.reply_to_message.from_user.id
+            if message.reply_to_message.from_user.username:
+                user_mention = f"[{message.reply_to_message.from_user.username}](https://t.me/{message.reply_to_message.from_user.username})"
+            else:
+                user_mention = message.reply_to_message.from_user.first_name
+
             if len(parts) != 2:
-                raise ValueError("⚙️ Неправильний формат. Використовуй `/edit N` у відповідь на повідомлення", parse_mode="Markdown")
-            value = int(parts[1])
+                raise ValueError("⚙️ Неправильний формат. Використовуй `/edit N` у відповідь на повідомлення")
+            value = parts[1]
         else:
             if len(parts) != 3:
-                raise ValueError("⚙️ Неправильний формат. Використовуй `/edit ID N`", parse_mode="Markdown")
+                raise ValueError("⚙️ Неправильний формат. Використовуй `/edit ID N`")
             user_id = int(parts[1])
-            value = int(parts[2])
+            value = parts[2]
+
+            user_info = await bot.get_chat_member(chat_id, user_id)
+            if user_info.user.username:
+                user_mention = f"[{user_info.user.username}](https://t.me/{user_info.user.username})"
+            else:
+                user_mention = user_info.user.first_name
+
+        if ',' in value or '.' in value:
+            raise ValueError("🚫 Введене значення не є цілим числом.")
 
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        result = cursor.fetchone()
+        current_value = cursor.fetchone()
 
-        if result is None:
-            cursor.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?)', (user_id, chat_id, value))
+        if current_value is None:
+            current_value = 0
         else:
-            cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?', (value, user_id, chat_id))
+            current_value = current_value[0]
+
+        if value.startswith('+') or value.startswith('-'):
+            updated_value = current_value + int(value)
+        else:
+            updated_value = int(value)
+
+        if current_value is None:
+            cursor.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?)', 
+                           (user_id, chat_id, updated_value))
+        else:
+            cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?', 
+                           (updated_value, user_id, chat_id))
 
         conn.commit()
-        await message.reply(f"🆒 Значення `{user_id}` було змінено на `{value}` кг", parse_mode="Markdown")
+        await bot.send_message(chat_id=message.chat.id, 
+                       text=f"🆒 Значення {user_mention} було змінено на `{updated_value}` кг", 
+                       parse_mode="Markdown", disable_web_page_preview=True)
+
+        await asyncio.sleep(300)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except MessageCantBeDeleted:
+            pass
     except ValueError as e:
-        await message.reply(str(e))
+        error_message = await message.reply(str(e))
+        await asyncio.sleep(300)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=error_message.message_id)
+        except MessageCantBeDeleted:
+            pass
     except OverflowError:
-        await message.reply("⚠️ Занадто велике значення. Спробуй менше число", parse_mode="Markdown")
-        
+        error_message = await message.reply("⚠️ Занадто велике значення. Спробуй менше число", parse_mode="Markdown")
+        await asyncio.sleep(300)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=error_message.message_id)
+        except MessageCantBeDeleted:
+            pass
+
 #/give-----
 givers = {}
+original_messages = {}
 @dp.message_handler(commands=['give'])
 async def give_benis(message: types.Message):
     global givers
     if message.reply_to_message and message.from_user.id != message.reply_to_message.from_user.id:
         parts = message.text.split()
         if len(parts) != 2:
-            await message.reply("⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
+            reply = await bot.send_message(message.chat.id, "⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
+            await asyncio.sleep(300)
+            await bot.delete_message(message.chat.id, message.message_id)
+            await bot.delete_message(message.chat.id, reply.message_id)
             return
 
         try:
@@ -295,7 +489,10 @@ async def give_benis(message: types.Message):
                 raise ValueError
             
         except ValueError:
-            await message.reply("🤨 Типо розумний? Введи плюсове і ціле число. Наприклад: `/give 5`", parse_mode="Markdown")
+            reply = await bot.send_message(message.chat.id, "🤨 Типо розумний? Введи плюсове і ціле число. Наприклад: `/give 5` у відповідь на повідомлення", parse_mode="Markdown")
+            await asyncio.sleep(300)
+            await bot.delete_message(message.chat.id, message.message_id)
+            await bot.delete_message(message.chat.id, reply.message_id)
             return
 
         giver_id = message.from_user.id
@@ -306,39 +503,58 @@ async def give_benis(message: types.Message):
                        (giver_id, chat_id))
         last_given = cursor.fetchone()
 
-        if last_given:
+        if last_given and last_given[0]:  # Проверяем, что last_given не пуст и не None
             last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S.%f')
             if last_given + timedelta(hours=12) > now:
                 cooldown_time = (last_given + timedelta(hours=12)) - now
                 cooldown_time = str(cooldown_time).split('.')[0]
-                await message.reply(f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
+                reply = await bot.send_message(message.chat.id, f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
+                await asyncio.sleep(300)
+                await bot.delete_message(message.chat.id, message.message_id)
+                await bot.delete_message(message.chat.id, reply.message_id)
                 return
+        else:
+            last_given = None
 
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, chat_id))
         result = cursor.fetchone()
         if not result or result[0] < value:
-            await message.reply(f"⚠️ У тебе `{result[0] if result else 0}` кг. Цього недостатньо", parse_mode="Markdown")
+            reply = await bot.send_message(message.chat.id, f"⚠️ У тебе `{result[0] if result else 0}` кг. Цього недостатньо", parse_mode="Markdown")
+            await asyncio.sleep(300)
+            await bot.delete_message(message.chat.id, message.message_id)
+            await bot.delete_message(message.chat.id, reply.message_id)
             return
 
         inline_kb = InlineKeyboardMarkup(row_width=2)
         btn1 = InlineKeyboardButton('✅ Так', callback_data=f'give_{value}_yes_{message.reply_to_message.from_user.id}')
         btn2 = InlineKeyboardButton('❌ Ні', callback_data=f'give_{value}_no_{message.reply_to_message.from_user.id}')
         inline_kb.add(btn1, btn2)
-        
+
         current_balance = result[0] if result else 0
 
-        receiver_mention = ('[' + message.reply_to_message.from_user.username + ']' + '(https://t.me/' + message.reply_to_message.from_user.username + ')') if message.reply_to_message.from_user.username else message.reply_to_message.from_user.first_name  # Получение упоминания получателя
+        receiver_mention = ('[' + message.reply_to_message.from_user.username + ']' + '(https://t.me/' + message.reply_to_message.from_user.username + ')') if message.reply_to_message.from_user.username else message.reply_to_message.from_user.first_name
 
-        sent_message = await message.reply(f"🔄 Ти збираєшся передати `{value}` кг русофобії {receiver_mention}\n🏷️ В тебе: `{current_balance}` кг. Підтверджуєш?", 
+        giver_mention = ('[' + message.from_user.username + ']' + '(https://t.me/' + message.from_user.username + ')') if message.from_user.username else message.from_user.first_name
+
+        sent_message = await bot.send_message(chat_id=message.chat.id,
+                                   text=f"🔄 {giver_mention} збирається передати `{value}` кг русофобії {receiver_mention}\n🏷️ В тебе: `{current_balance}` кг. Підтверджуєш?",
                                    reply_markup=inline_kb, parse_mode="Markdown", disable_web_page_preview=True)
 
         givers[sent_message.message_id] = message.from_user.id
+        original_messages[sent_message.message_id] = message.message_id 
+
+        await asyncio.sleep(300)
+        await bot.delete_message(message.chat.id, message.message_id)
+
     else:
-        await message.reply("⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
+        reply = await bot.send_message(message.chat.id, "⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
+        await asyncio.sleep(300)
+        await bot.delete_message(message.chat.id, message.message_id)
+        await bot.delete_message(message.chat.id, reply.message_id)
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('give_'))
 async def process_give_callback(callback_query: CallbackQuery):
-    global givers  
+    global givers, original_messages
     _, value, answer, receiver_id = callback_query.data.split('_')
     value = int(value)
     receiver_id = int(receiver_id)
@@ -351,17 +567,24 @@ async def process_give_callback(callback_query: CallbackQuery):
     cursor.execute('SELECT give FROM cooldowns WHERE user_id = ? AND chat_id = ? AND give IS NOT NULL', 
                    (giver_id, callback_query.message.chat.id))
     last_given = cursor.fetchone()
-    if last_given:
+    if last_given and last_given[0]:
         last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S.%f')
         if last_given + timedelta(hours=12) > now:
             cooldown_time = (last_given + timedelta(hours=12)) - now
             cooldown_time = str(cooldown_time).split('.')[0]
-            await bot.edit_message_text(
+            reply = await bot.edit_message_text(
                 text=f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`", 
                 chat_id=callback_query.message.chat.id, 
                 message_id=callback_query.message.message_id,
                 parse_mode="Markdown")
+            await asyncio.sleep(300)
+            try:
+                await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+            except MessageCantBeDeleted:
+                pass
             return
+        else:
+            last_given = None
 
     if giver_id != callback_query.from_user.id:
         try:
@@ -384,17 +607,36 @@ async def process_give_callback(callback_query: CallbackQuery):
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, callback_query.message.chat.id))
         updated_benis = cursor.fetchone()[0]
 
+        if callback_query.from_user.username:
+            giver_mention = f"[{callback_query.from_user.username}](https://t.me/{callback_query.from_user.username})"
+        else:
+            giver_mention = callback_query.from_user.first_name
+
         await bot.edit_message_text(
-            text=f"✅ Ти передав `{value}` кг русофобії {receiver_mention}\n🏷️ Тепер в тебе: `{updated_benis}` кг", 
+            text=f"✅ {giver_mention} передав `{value}` кг русофобії {receiver_mention}\n🏷️ Тепер в тебе: `{updated_benis}` кг", 
             chat_id=callback_query.message.chat.id, 
             message_id=callback_query.message.message_id, 
             parse_mode="Markdown", 
             disable_web_page_preview=True
         )
+        
+        await asyncio.sleep(300)
+        try:
+            await bot.delete_message(callback_query.message.chat.id, original_messages.get(callback_query.message.message_id))
+        except MessageCantBeDeleted:
+            pass
     else:
-        await bot.edit_message_text(text="❌ Передача русофобії скасована", 
-                                    chat_id=callback_query.message.chat.id, 
-                                    message_id=callback_query.message.message_id)
+        await bot.edit_message_text(
+            text="❌ Передача русофобії скасована", 
+            chat_id=callback_query.message.chat.id, 
+            message_id=callback_query.message.message_id
+        )
+        
+        await asyncio.sleep(300)
+        try:
+            await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+        except MessageCantBeDeleted:
+            pass
 
 if __name__ == '__main__':
     executor.start_polling(dp)
