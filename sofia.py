@@ -5,23 +5,26 @@ import random
 import sqlite3
 import psutil
 import aiogram
+import configparser
 from asyncio import sleep
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
-from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted
+from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, BotKicked, ChatNotFound
 from aiogram.dispatcher.middlewares import BaseMiddleware
 
+config = configparser.ConfigParser()
 try:
-    with open('config.json', 'r') as file:
-        config = json.load(file)
-        TOKEN = config['TOKEN']
-        ADMIN = config['ADMIN_ID']
-        CHAT_ALIASES = config.get('CHAT_ALIASES', {})
-except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
-    print(f"Error loading config file: {e}")
+    config.read('config.ini')
+    TOKEN = config['TOKEN']['SOFIA']
+    ADMIN = int(config['ID']['ADMIN'])
+    ALIASES = {k: int(v) for k, v in config['ALIASES'].items()}
+except (FileNotFoundError, KeyError) as e:
+    print(f"Помилка завантаження конфігураційного файлу: {e}")
     exit()
+
+print(TOKEN, ADMIN, ALIASES)
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -110,37 +113,58 @@ async def get_benis(message: types.Message):
 
     if not user_value_result:
         isNewUser = True
-        welcome_message = await message.reply("🎉 Вітаю! Ти тепер зареєстрований у грі русофобії!")
+        welcome_message = await message.reply(f"🎉 {username_or_name}, вітаю! Ти тепер зареєстрований у грі русофобії!", parse_mode="Markdown",
+                                   disable_web_page_preview=True)
         cursor.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?)', (user_id, chat_id, 0))
         conn.commit()
 
     cursor.execute('SELECT killru FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     cooldown_result = cursor.fetchone()
+    killru = None
 
     if cooldown_result and cooldown_result[0]:
         killru = datetime.strptime(cooldown_result[0], '%Y-%m-%d %H:%M:%S.%f')
-        if killru and killru + timedelta(hours=24) > now:
-            cooldown_time = (killru + timedelta(hours=24)) - now
-            cooldown_time = str(cooldown_time).split('.')[0]
-            warning_message = await message.reply(
-                f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
-            await asyncio.sleep(3600)
-            try:
-                await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-                await bot.delete_message(chat_id=message.chat.id, message_id=warning_message.message_id)
-            except MessageCantBeDeleted:
-                pass
-            return
+    if killru and killru + timedelta(hours=24) > now:
+        remaining_time = (killru + timedelta(hours=24)) - now
+        hours, remainder = divmod(remaining_time.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        cooldown_time_str = f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+
+        bonus_message = ""
+        special_times = ['01:11:11', '02:22:22', '22:22:22', '00:00:00']
+
+        if cooldown_time_str in special_times:
+            bonus_message = "\n🎉 Гарний час. Бонус + `5` кг!"
+            cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+            result = cursor.fetchone()
+            new_benis = result[0] + 5 if result else 5
+            cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?',
+                   (new_benis, user_id, chat_id))
+            conn.commit()
+
+        cooldown_time = str(remaining_time).split('.')[0]
+        await message.reply(
+            f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`{bonus_message}", 
+            parse_mode="Markdown")
+
+        await asyncio.sleep(3600)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except MessageCantBeDeleted:
+            pass
+        return
+
     else:
-        cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, str(now)))
+        cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (str(now), user_id, chat_id))
         conn.commit()
 
     benis = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+
+    if isNewUser:
+        benis = abs(benis)
+
     cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     result = cursor.fetchone()
-
-    if result is None and benis < 0:
-        benis = abs(benis)
 
     new_benis = 0
     if result is None:
@@ -530,7 +554,7 @@ async def process_leave_confirmation(callback_query: CallbackQuery):
 
     if callback_query.data == 'confirm_leave':
         cursor.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        cursor.execute('DELETE FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+        cursor.execute('UPDATE cooldowns SET killru = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
         conn.commit()
         await bot.answer_callback_query(callback_query.id, "✅ Успішно")
         await bot.edit_message_text(f"🤬 {username_or_name}, ти покинув гру, і тебе було видалено з бази даних", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
@@ -542,6 +566,45 @@ async def process_leave_confirmation(callback_query: CallbackQuery):
             await bot.delete_message(chat_id=chat_id, message_id=callback_query.message.message_id)
         except MessageCantBeDeleted:
             pass
+
+#/chatlist-----
+@dp.message_handler(commands=['chatlist'])  
+async def list_chats(message: types.Message):
+    if message.from_user.id != ADMIN:
+        return
+
+    cursor.execute('SELECT chat_id FROM chats')
+    chats = cursor.fetchall()
+
+    if not chats:
+        reply = await message.reply("😬 Бота не було додано до жодного чату")
+    else:
+        chat_list = "💬 Список чатів бота:\n\n"
+        for chat in chats:
+            try:
+                chat_info = await bot.get_chat(chat[0])
+                chat_title = chat_info.title
+                chat_type = chat_info.type
+                chat_username = chat_info.username
+
+                if chat_username:
+                    chat_link = f"@{chat_username}"
+                    chat_list += f"🔹 {chat[0]}, {chat_type}\n{chat_title} - {chat_link}\n"
+                else:
+                    chat_list += f"🔹 {chat[0]}, {chat_type}, {chat_title}\n"
+            except BotKicked:
+                chat_list += f"🔹 {chat[0]} - вилучено\n"
+            except ChatNotFound:
+                chat_list += f"🔹 {chat[0]} - не знайдено\n"
+
+        reply = await message.reply(chat_list, disable_web_page_preview=True)
+    
+    await asyncio.sleep(3600)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
+    except MessageCantBeDeleted:
+        pass
 
 #/message-----
 @dp.message_handler(commands=['message'])
@@ -566,8 +629,8 @@ async def broadcast_message(message: types.Message):
     chat_id_to_send = None
     text_to_send = None
     if len(parts) == 3:
-        if parts[1].startswith('-100') or parts[1].lower() in CHAT_ALIASES:
-            chat_id_to_send = int(parts[1]) if parts[1].startswith('-100') else CHAT_ALIASES[parts[1].lower()]
+        if parts[1].startswith('-100') or parts[1].lower() in ALIASES:
+            chat_id_to_send = int(parts[1]) if parts[1].startswith('-100') else ALIASES[parts[1].lower()]
             text_to_send = parts[2]
         else:
             text_to_send = " ".join(parts[1:])
@@ -702,9 +765,7 @@ async def edit_benis(message: types.Message):
 #/statareset-----
 @dp.message_handler(commands=['statareset'])
 async def reset_user_value(message: types.Message):
-    admin = ADMIN
-
-    if message.from_user.id != admin:
+    if message.from_user.id != ADMIN:
         return
 
     if not message.reply_to_message and not (len(message.text.split()) > 1 and message.text.split()[1].isdigit()):
