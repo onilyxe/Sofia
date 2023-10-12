@@ -24,8 +24,6 @@ except (FileNotFoundError, KeyError) as e:
     print(f"Помилка завантаження конфігураційного файлу: {e}")
     exit()
 
-print(TOKEN, ADMIN, ALIASES)
-
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
