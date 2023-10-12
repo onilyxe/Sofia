@@ -17,18 +17,20 @@ Configuring
 ------------
 **Open the `config.json` configuration file in a text editor and change the values to your own:**
 ```ini
-{
-    "TOKEN": "0000000000:0000000000000000000000000000000000",
-    "ADMIN_ID": 000000000,
-    "CHAT_ALIASES": 
-    {
-        "alias": -1000000000000
-    }
-}
+[TOKEN]
+SOFIA = 0000000000:0000000000000000000000000000000000
+TEST = 0000000000:0000000000000000000000000000000000
+
+[ID]
+ADMIN = 000000000
+
+[ALIASES]
+chatname1= -1000000000000
+chatname1 = -1000000000001
 ```
 * `TOKEN` is token for your Telegram bot. You can get it here: [BotFather](https://t.me/BotFather)
-* `ADMIN_ID` is your ID
-* `CHAT_ALIASES` Aliases for the chat ID so you don't have to type it in
+* `ADMIN` is your ID
+* `ALIASES` Aliases for the chat ID so you don't have to type it in
 
 Running
 ------------
