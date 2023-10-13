@@ -122,6 +122,9 @@ async def get_benis(message: types.Message):
 
     if cooldown_result and cooldown_result[0]:
         killru = datetime.strptime(cooldown_result[0], '%Y-%m-%d %H:%M:%S.%f')
+    if not killru or isNewUser:
+        cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (str(now), user_id, chat_id))
+        conn.commit()
     if killru and killru + timedelta(hours=24) > now:
         remaining_time = (killru + timedelta(hours=24)) - now
         hours, remainder = divmod(remaining_time.total_seconds(), 3600)
@@ -129,7 +132,7 @@ async def get_benis(message: types.Message):
         cooldown_time_str = f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
         bonus_message = ""
-        special_times = ['01:11:11', '02:22:22', '22:22:22', '00:00:00']
+        special_times = ['00:00:00', '00:13:37', '01:00:00', '01:11:11', '02:00:00', '02:22:22', '22:22:22', '03:00:00', '04:00:00', '04:20:00', '05:00:00', '06:00:00', '07:00:00', '08:00:00', '09:00:00', '10:00:00', '11:00:00', '12:00:00', '13:00:00', '14:00:00', '15:00:00', '16:00:00', '17:00:00', '18:00:00', '19:00:00', '20:00:00', '21:00:00', '22:00:00', '23:00:00']
 
         if cooldown_time_str in special_times:
             bonus_message = "\n🎉 Гарний час. Бонус + `5` кг!"
@@ -141,19 +144,24 @@ async def get_benis(message: types.Message):
             conn.commit()
 
         cooldown_time = str(remaining_time).split('.')[0]
-        await message.reply(
+        cooldown_message = await message.reply(
             f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`{bonus_message}", 
             parse_mode="Markdown")
 
         await asyncio.sleep(3600)
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=cooldown_message.message_id)
         except MessageCantBeDeleted:
             pass
         return
 
     else:
-        cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (str(now), user_id, chat_id))
+        cursor.execute('SELECT * FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+        if cursor.fetchone():
+            cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (str(now), user_id, chat_id))
+        else:
+            cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, str(now)))
         conn.commit()
 
     benis = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
@@ -552,7 +560,7 @@ async def process_leave_confirmation(callback_query: CallbackQuery):
 
     if callback_query.data == 'confirm_leave':
         cursor.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        cursor.execute('UPDATE cooldowns SET killru = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+        #cursor.execute('UPDATE cooldowns SET killru = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
         conn.commit()
         await bot.answer_callback_query(callback_query.id, "✅ Успішно")
         await bot.edit_message_text(f"🤬 {username_or_name}, ти покинув гру, і тебе було видалено з бази даних", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
@@ -564,6 +572,47 @@ async def process_leave_confirmation(callback_query: CallbackQuery):
             await bot.delete_message(chat_id=chat_id, message_id=callback_query.message.message_id)
         except MessageCantBeDeleted:
             pass
+
+#/ping-----
+@dp.message_handler(commands=['ping'])
+async def ping(message: types.Message):
+    start_time = datetime.now()
+    await bot.get_me()
+    end_time = datetime.now()
+    ping_time = (end_time - start_time).total_seconds() * 1000
+
+    cursor.execute('SELECT count FROM queries WHERE datetime >= ? AND datetime < ? ORDER BY datetime DESC LIMIT 1',
+                   (start_time.replace(hour=0, minute=0, second=0, microsecond=0),
+                    start_time.replace(hour=23, minute=59, second=59, microsecond=999999)))
+
+    requests_today = cursor.fetchone()[0] or 0
+
+    cursor.execute('SELECT SUM(count) FROM queries WHERE datetime >= ?', (start_time - timedelta(days=7),))
+    requests_last_week = cursor.fetchone()[0] or 0
+
+    cursor.execute('SELECT SUM(count) FROM queries')
+    requests_all_time = cursor.fetchone()[0] or 0
+
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_info = psutil.virtual_memory()
+
+    response = await message.reply(
+        f"📡 Ping: `{ping_time:.2f}` ms\n\n"
+        f"🔥 CPU: `{cpu_usage}%`\n"
+        f"💾 RAM: `{memory_info.percent}%`\n\n"
+        f"📊 Кількість запитів\n"
+        f"_За сьогодні:_ `{requests_today}`\n"
+        f"_За тиждень:_ `{requests_last_week}`\n"
+        f"_За весь час:_ `{requests_all_time}`", parse_mode="Markdown"
+    )
+
+    await asyncio.sleep(3600)
+    try:
+        await bot.delete_message(message.chat.id, message.message_id)
+        await bot.delete_message(response.chat.id, response.message_id)
+    except MessageCantBeDeleted:
+        pass
+    return
 
 #/chatlist-----
 @dp.message_handler(commands=['chatlist'])  
@@ -695,13 +744,38 @@ async def edit_benis(message: types.Message):
             else:
                 user_mention = message.reply_to_message.from_user.first_name
 
-            if len(parts) != 2:
+            if len(parts) == 1:
+                cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+                current_value = cursor.fetchone()
+                if current_value:
+                    await message.reply(f"📊 {user_mention} має `{current_value[0]}` кг русофобії", parse_mode="Markdown", disable_web_page_preview=True)
+                else:
+                    await message.reply(f"😬 {user_mention} ще не має русофобії", parse_mode="Markdown", disable_web_page_preview=True)
+                return
+
+            elif len(parts) != 2:
                 raise ValueError("⚙️ Неправильний формат. Використовуй `/edit N` у відповідь на повідомлення")
             value = parts[1]
         else:
-            if len(parts) != 3:
-                raise ValueError("⚙️ Неправильний формат. Використовуй `/edit ID N`")
+            if len(parts) < 2:
+                raise ValueError("⚙️ Неправильний формат. Використовуй `/edit ID N` або `/edit ID`")
             user_id = int(parts[1])
+
+            user_info = await bot.get_chat_member(chat_id, user_id)
+            if user_info.user.username:
+                user_mention = f"[{user_info.user.username}](https://t.me/{user_info.user.username})"
+            else:
+                user_mention = user_info.user.first_name
+
+            if len(parts) == 2:
+                cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+                current_value = cursor.fetchone()
+                if current_value:
+                    await message.reply(f"📊 {user_mention} має `{current_value[0]}` кг русофобії", parse_mode="Markdown", disable_web_page_preview=True)
+                else:
+                    await message.reply(f"😬 {user_mention} ще не має русофобії", parse_mode="Markdown", disable_web_page_preview=True)
+                return
+
             value = parts[2]
 
             user_info = await bot.get_chat_member(chat_id, user_id)
@@ -805,47 +879,6 @@ async def reset_user_value(message: types.Message):
     await asyncio.sleep(3600)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-    except MessageCantBeDeleted:
-        pass
-    return
-
-#/ping-----
-@dp.message_handler(commands=['ping'])
-async def ping(message: types.Message):
-    start_time = datetime.now()
-    await bot.get_me()
-    end_time = datetime.now()
-    ping_time = (end_time - start_time).total_seconds() * 1000
-
-    cursor.execute('SELECT count FROM queries WHERE datetime >= ? AND datetime < ? ORDER BY datetime DESC LIMIT 1',
-                   (start_time.replace(hour=0, minute=0, second=0, microsecond=0),
-                    start_time.replace(hour=23, minute=59, second=59, microsecond=999999)))
-
-    requests_today = cursor.fetchone()[0] or 0
-
-    cursor.execute('SELECT SUM(count) FROM queries WHERE datetime >= ?', (start_time - timedelta(days=7),))
-    requests_last_week = cursor.fetchone()[0] or 0
-
-    cursor.execute('SELECT SUM(count) FROM queries')
-    requests_all_time = cursor.fetchone()[0] or 0
-
-    cpu_usage = psutil.cpu_percent(interval=1)
-    memory_info = psutil.virtual_memory()
-
-    response = await message.reply(
-        f"📡 Ping: `{ping_time:.2f}` ms\n\n"
-        f"🔥 CPU Load: {cpu_usage}%\n"
-        f"💾 Memory Usage: {memory_info.percent}%\n\n"
-        f"📊 Кількість запитів\n"
-        f"_За сьогодні:_ `{requests_today}`\n"
-        f"_За тиждень:_ `{requests_last_week}`\n"
-        f"_За весь час:_ `{requests_all_time}`", parse_mode="Markdown"
-    )
-
-    await asyncio.sleep(3600)
-    try:
-        await bot.delete_message(message.chat.id, message.message_id)
-        await bot.delete_message(response.chat.id, response.message_id)
     except MessageCantBeDeleted:
         pass
     return
