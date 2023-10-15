@@ -7,6 +7,7 @@ import random
 import aiocache
 import aiogram
 import psutil
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, BotKicked, ChatNotFound
@@ -45,8 +46,26 @@ class LoggingMiddleware(aiogram.dispatcher.middlewares.BaseMiddleware):
 
 dp.middleware.setup(LoggingMiddleware())
 
-# Логування помилок 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
+# Створюємо папку logs якщо її немає
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+# Отримуємо поточну дату для використання в імені файлу лога
+current_date = datetime.now().strftime("%Y-%m-%d")
+
+# Створюємо логгер
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Створюємо обробник для запису логів у файл
+file_handler = logging.FileHandler(f'logs/log_{current_date}.log')
+file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+logger.addHandler(file_handler)
+
+# Створюємо обробник для виведення логів у консоль
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+logger.addHandler(console_handler)
 
 # Запис у базу даних кількість запитів до бота для команди /ping
 class DatabaseMiddleware(aiogram.dispatcher.middlewares.BaseMiddleware):
@@ -74,7 +93,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS user_values (user_id INTEGER, chat_
 cursor.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru DATE, give TIMESTAMP, game TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
 cursor.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
 cursor.execute('''CREATE TABLE IF NOT EXISTS queries (id INTEGER PRIMARY KEY, datetime TIMESTAMP NOT NULL, count INTEGER NOT NULL DEFAULT 0)''')
-
 
 # Додає chat_id у базу даних для розсилки
 def add_chat(chat_id):
@@ -141,7 +159,6 @@ async def killru(message: types.Message):
 
     if cooldown and cooldown[0]:
         cooldown_killru = datetime.strptime(cooldown[0], '%Y-%m-%d').date()
-
     if cooldown_killru and now.date() <= cooldown_killru:
         next_day = now + timedelta(days=1)
         midnight = datetime.combine(next_day, datetime.min.time())
@@ -151,7 +168,23 @@ async def killru(message: types.Message):
         minutes, seconds = divmod(remainder, 60)
         cooldown_time_str = f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
-        cooldown_message = await message.reply(f"⚠️ Ти можеш використати цю команду тільки один раз на день. Спробуй через `{cooldown_time_str}`", parse_mode="Markdown")
+        bonus = ""
+        bonus_times = [
+        '00:00:00', '00:13:37', '01:00:00', '01:11:11', '02:00:00', '02:22:22',
+        '22:22:22', '03:00:00', '03:33:33', '04:00:00', '04:20:00', '04:44:44',
+        '05:00:00', '05:55:55', '06:00:00', '07:00:00', '08:00:00', '09:00:00',
+        '10:00:00', '11:00:00', '12:00:00', '13:00:00', '13:33:37', '14:00:00',
+        '15:00:00', '16:00:00', '17:00:00', '18:00:00', '19:00:00', '20:00:00',
+        '21:00:00', '22:00:00', '23:00:00']
+        if cooldown_time_str in bonus_times:
+            bonus = "\n\n🎉 Гарний час! Тримай за удачу `5` кг!"
+            cursor.execute('UPDATE user_values SET value = value + 5 WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+            conn.commit()
+
+        cooldown_message = await message.reply(
+            f"⚠️ Ти можеш використати цю команду тільки один раз на день. Спробуй через `{cooldown_time_str}`{bonus}", 
+            parse_mode="Markdown"
+        )
 
         await asyncio.sleep(3600)
         try:
@@ -159,6 +192,7 @@ async def killru(message: types.Message):
             await bot.delete_message(chat_id, cooldown_message.message_id)
         except MessageCantBeDeleted:
             pass
+        return
 
     else:
         cursor.execute('SELECT * FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
@@ -168,28 +202,27 @@ async def killru(message: types.Message):
             cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (now.strftime('%Y-%m-%d'), user_id, chat_id))
         else:
             cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, now.strftime('%Y-%m-%d')))
-
         conn.commit()
 
-        rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
-        if newuser:
-            rusophobia = abs(rusophobia)
+    if newuser:
+        rusophobia = abs(rusophobia)
 
-        cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        result = cursor.fetchone()
-        new_rusophobia = result[0] + rusophobia if result else rusophobia
+    cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+    new_rusophobia = result[0] + rusophobia if result else rusophobia
 
-        cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?', (new_rusophobia, user_id, chat_id))
-        conn.commit()
+    cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?', (new_rusophobia, user_id, chat_id))
+    conn.commit()
 
-        if rusophobia >= 0:
-            message_text = f"📈 {mention}, твоя русофобія збільшилась на `{rusophobia}` кг"
-        else:
-            message_text = f"📉 {mention}, твоя русофобія зменшилась на `{abs(rusophobia)}` кг"
+    if rusophobia >= 0:
+        message_text = f"📈 {mention}, твоя русофобія збільшилась на `{rusophobia}` кг"
+    else:
+        message_text = f"📉 {mention}, твоя русофобія зменшилась на `{abs(rusophobia)}` кг"
 
-        message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг"
-        reply = await bot.send_message(chat_id=message.chat.id, text=message_text, parse_mode="Markdown", disable_web_page_preview=True)
+    message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг"
+    reply = await bot.send_message(chat_id=message.chat.id, text=message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
     await asyncio.sleep(3600)
     try:
@@ -238,17 +271,18 @@ async def start_game(message: types.Message):
     
     if last_played and last_played[0]:
         last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-        cooldown = timedelta(hours=12)
+        cooldown = timedelta(hours=3)
         if datetime.now() < last_played + cooldown:
             time_left = last_played + cooldown - datetime.now()
             cooldown_time = str(time_left).split(".")[0]
-            cooldown_message = await bot.send_message(chat_id, f"⚠️ ти ще не можеш грати. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
+            cooldown_message = await bot.send_message(chat_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
             await asyncio.sleep(3600)
             try:
                 await bot.delete_message(chat_id, message.message_id)
                 await bot.delete_message(chat_id, cooldown_message.message_id)
             except MessageCantBeDeleted:
                 pass
+            return
 
     cursor.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
     balance = cursor.fetchone()
@@ -258,13 +292,14 @@ async def start_game(message: types.Message):
         balance = 0
 
     if balance <= 0:
-        no_balance_message = await bot.send_message(chat_id, f"⚠️ у тебе недостатньо русофобії для гри")
+        no_balance_message = await bot.send_message(chat_id, f"⚠️ У тебе недостатньо русофобії для гри")
         await asyncio.sleep(3600)
         try:
             await bot.delete_message(chat_id, message.message_id)
             await bot.delete_message(chat_id, no_balance_message.message_id)
         except MessageCantBeDeleted:
             pass
+        return
 
     await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
 
@@ -299,6 +334,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             await bot.delete_message(chat_id, callback_query.message.message_id)
         except MessageCantBeDeleted:
             pass
+        return
 
     elif callback_query.data.startswith('bet_'):
         _, bet = callback_query.data.split('_')
@@ -351,7 +387,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
         balance_after_bet = cursor.fetchone()[0]
         bet = await cache.get(f"bet_{user_id}_{chat_id}")
         bet = int(bet)
-        win = random.random() < 0.4
+        win = random.random() < 0.3
 
         if win:
             bet_won = bet * 2 
@@ -548,11 +584,13 @@ async def show_globaltop(message: types.Message, limit: int, title: str):
         user_names = await asyncio.gather(*tasks)
 
         message_text = f'{title}:\n'
+        medals = ["🥇", "🥈", "🥉"]
         count = 0
         for user_name, (_, rusophobia) in zip(user_names, results):
             if user_name:
+                medal = medals[count] if count < 3 else f"{count + 1}."
+                message_text += f'{medal} {user_name}: {rusophobia} кг\n'
                 count += 1
-                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
 
         response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -592,11 +630,13 @@ async def show_top(message: types.Message, limit: int, title: str):
         user_names = await asyncio.gather(*tasks)
 
         message_text = f'{title}:\n'
+        medals = ["🥇", "🥈", "🥉"]
         count = 0
         for user_name, (_, rusophobia) in zip(user_names, results):
             if user_name:
+                medal = medals[count] if count < 3 else f"{count + 1}."
+                message_text += f'{medal} {user_name}: {rusophobia} кг\n'
                 count += 1
-                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
 
         response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -606,6 +646,7 @@ async def show_top(message: types.Message, limit: int, title: str):
         await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
     except MessageCantBeDeleted:
         pass
+
 
 
 @dp.message_handler(commands=['top10'])
