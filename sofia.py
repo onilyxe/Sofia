@@ -71,9 +71,10 @@ dp.middleware.setup(DatabaseMiddleware())
 conn = sqlite3.connect('sofia.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_values (user_id INTEGER, chat_id INTEGER, value INTEGER, PRIMARY KEY(user_id, chat_id))''')
-cursor.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, give TEXT, killru TIMESTAMP, PRIMARY KEY(user_id, chat_id, give))''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru DATE, give TIMESTAMP, game TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
 cursor.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
 cursor.execute('''CREATE TABLE IF NOT EXISTS queries (id INTEGER PRIMARY KEY, datetime TIMESTAMP NOT NULL, count INTEGER NOT NULL DEFAULT 0)''')
+
 
 # Додає chat_id у базу даних для розсилки
 def add_chat(chat_id):
@@ -99,6 +100,7 @@ async def help(message: types.Message):
         "🎮 *Розвивай свою русофобію. Зростай її щодня, і змагайся з друзями*" +
         "\n\n*/killru* — _Спробувати підвищити свою русофобію_" +
         "\n*/my* — _Моя русофобія_" +
+        "\n*/game* — _Знайди і вбий москаля_" +
         "\n*/give* — _Поділиться русофобією_" +
         "\n*/globaltop* — _Топ всіх гравців_" +
         "\n*/top10* — _Топ 10 гравців_" +
@@ -138,83 +140,63 @@ async def killru(message: types.Message):
     cooldown_killru = None
 
     if cooldown and cooldown[0]:
-        cooldown_killru = datetime.strptime(cooldown[0], '%Y-%m-%d %H:%M:%S.%f')
-    if not cooldown_killru or newuser:
-        cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (str(now), user_id, chat_id))
-        conn.commit()
-    if cooldown_killru and cooldown_killru + timedelta(hours=24) > now:
-        remaining_time = (cooldown_killru + timedelta(hours=24)) - now
+        cooldown_killru = datetime.strptime(cooldown[0], '%Y-%m-%d').date()
+
+    if cooldown_killru and now.date() <= cooldown_killru:
+        next_day = now + timedelta(days=1)
+        midnight = datetime.combine(next_day, datetime.min.time())
+        remaining_time = midnight - now
+
         hours, remainder = divmod(remaining_time.total_seconds(), 3600)
         minutes, seconds = divmod(remainder, 60)
         cooldown_time_str = f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
-        bonus = ""
-        bonus_times = ['00:00:00', '00:13:37', '01:00:00', '01:11:11', '02:00:00', '02:22:22', '22:22:22', '03:00:00', '03:33:33', '04:00:00', '04:20:00', '04:44:44', '05:00:00', '05:55:55', '06:00:00', '07:00:00', '08:00:00', '09:00:00', '10:00:00', '11:00:00', '12:00:00', '13:00:00', '13:33:37', '14:00:00', '15:00:00', '16:00:00', '17:00:00', '18:00:00', '19:00:00', '20:00:00', '21:00:00', '22:00:00', '23:00:00']
-        if cooldown_time_str in bonus_times:
-            bonus = "\n🎉 Гарний час. Бонус + `5` кг!"
-            cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-            result = cursor.fetchone()
-            new_rusophobia = result[0] + 5 if result else 5
-            cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?',
-                   (new_rusophobia, user_id, chat_id))
-            conn.commit()
-
-        cooldown_time = str(remaining_time).split('.')[0]
-        cooldown_message = await message.reply(
-            f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`{bonus}", 
-            parse_mode="Markdown")
+        cooldown_message = await message.reply(f"⚠️ Ти можеш використати цю команду тільки один раз на день. Спробуй через `{cooldown_time_str}`", parse_mode="Markdown")
 
         await asyncio.sleep(3600)
         try:
-            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-            await bot.delete_message(chat_id=message.chat.id, message_id=cooldown_message.message_id)
+            await bot.delete_message(chat_id, message.message_id)
+            await bot.delete_message(chat_id, cooldown_message.message_id)
         except MessageCantBeDeleted:
             pass
-        return
 
     else:
         cursor.execute('SELECT * FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        if  cursor.fetchone():
-            cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (str(now), user_id, chat_id))
+        exists = cursor.fetchone()
+
+        if exists:
+            cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (now.strftime('%Y-%m-%d'), user_id, chat_id))
         else:
-            cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, str(now)))
+            cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, now.strftime('%Y-%m-%d')))
+
         conn.commit()
 
-    rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+        rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
-    if newuser:
-        rusophobia = abs(rusophobia)
+        if newuser:
+            rusophobia = abs(rusophobia)
 
-    cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-    result = cursor.fetchone()
+        cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+        result = cursor.fetchone()
+        new_rusophobia = result[0] + rusophobia if result else rusophobia
 
-    new_rusophobia = 0
-    if result is None:
-        cursor.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?)', (user_id, chat_id, rusophobia))
-        conn.commit()
-        new_rusophobia = rusophobia
-    else:
-        new_rusophobia = result[0] + rusophobia
-        cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?',
-                       (new_rusophobia, user_id, chat_id))
+        cursor.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?', (new_rusophobia, user_id, chat_id))
         conn.commit()
 
-    cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (str(now), user_id, chat_id))
-    conn.commit()
+        if rusophobia >= 0:
+            message_text = f"📈 {mention}, твоя русофобія збільшилась на `{rusophobia}` кг"
+        else:
+            message_text = f"📉 {mention}, твоя русофобія зменшилась на `{abs(rusophobia)}` кг"
 
-    if rusophobia >= 0:
-        message_text = f"📈 {mention}, твоя русофобія збільшилась на `{rusophobia}` кг"
-    else:
-        message_text = f"📉 {mention}, твоя русофобія зменшилась на `{abs(rusophobia)}` кг"
-
-    message_text += f" \n🏷️ Тепер в тебе: `{new_rusophobia}` кг"
-    reply = await bot.send_message(chat_id=message.chat.id, text=message_text, parse_mode="Markdown", disable_web_page_preview=True)
+        message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг"
+        reply = await bot.send_message(chat_id=message.chat.id, text=message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
     await asyncio.sleep(3600)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         if newuser:
             await bot.delete_message(chat_id=message.chat.id, message_id=welcome.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
     except MessageCantBeDeleted:
         pass
 
@@ -243,6 +225,149 @@ async def my(message: types.Message):
         await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
     except MessageCantBeDeleted:
         pass
+
+#/game-----
+@dp.message_handler(commands=['game'])
+async def start_game(message: types.Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    mention = ('[' + message.from_user.username + ']' + '(https://t.me/' + message.from_user.username + ')') if message.from_user.username else message.from_user.first_name
+
+    cursor.execute("SELECT game FROM cooldowns WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
+    last_played = cursor.fetchone()
+    
+    if last_played and last_played[0]:
+        last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
+        cooldown = timedelta(hours=12)
+        if datetime.now() < last_played + cooldown:
+            time_left = last_played + cooldown - datetime.now()
+            cooldown_time = str(time_left).split(".")[0]
+            cooldown_message = await bot.send_message(chat_id, f"⚠️ ти ще не можеш грати. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
+            await asyncio.sleep(3600)
+            try:
+                await bot.delete_message(chat_id, message.message_id)
+                await bot.delete_message(chat_id, cooldown_message.message_id)
+            except MessageCantBeDeleted:
+                pass
+
+    cursor.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
+    balance = cursor.fetchone()
+    if balance:
+        balance = balance[0]
+    else:
+        balance = 0
+
+    if balance <= 0:
+        no_balance_message = await bot.send_message(chat_id, f"⚠️ у тебе недостатньо русофобії для гри")
+        await asyncio.sleep(3600)
+        try:
+            await bot.delete_message(chat_id, message.message_id)
+            await bot.delete_message(chat_id, no_balance_message.message_id)
+        except MessageCantBeDeleted:
+            pass
+
+    await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
+
+    keyboard = InlineKeyboardMarkup(row_width=3)
+    bet_buttons = [InlineKeyboardButton(f"🏷️ {bet} кг", callback_data=f"bet_{bet}") for bet in [1, 3, 5, 10, 20, 30, 40, 50, 60]]
+    bet_buttons.append(InlineKeyboardButton("❌ Вийти", callback_data="cancel"))
+    keyboard.add(*bet_buttons)
+    game_message = await bot.send_message(chat_id, f"🧌 {mention}, знайди і вбий москаля\n\n🏷️ У тебе: `{balance}` кг\n🎰 Вибери ставку", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+    await cache.set(f"game_player_{game_message.message_id}", message.from_user.id)
+    await asyncio.sleep(3600)
+    try:
+        await bot.delete_message(chat_id, message.message_id)
+    except MessageCantBeDeleted:
+        pass
+
+
+@dp.callback_query_handler(lambda c: c.data.startswith('bet_') or c.data.startswith('cell_') or c.data == 'cancel')
+async def handle_game_buttons(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    game_player_id = await cache.get(f"game_player_{callback_query.message.message_id}")
+
+    if game_player_id != user_id:
+        await bot.answer_callback_query(callback_query.id, "❌ Ці кнопочки не для тебе!", show_alert=True)
+        return
+
+    if callback_query.data == 'cancel':
+        await bot.answer_callback_query(callback_query.id, "✅")
+        await bot.edit_message_text("⚠️ Гру скасовано", chat_id=chat_id, message_id=callback_query.message.message_id)
+        await asyncio.sleep(3600)
+        try:
+            await bot.delete_message(chat_id, callback_query.message.message_id)
+        except MessageCantBeDeleted:
+            pass
+
+    elif callback_query.data.startswith('bet_'):
+        _, bet = callback_query.data.split('_')
+        bet = int(bet)
+
+        cursor.execute("SELECT game FROM cooldowns WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
+        last_played = cursor.fetchone()
+        if last_played and last_played[0]:
+            last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
+            cooldown = timedelta(hours=12)
+            if datetime.now() < last_played + cooldown:
+                time_left = last_played + cooldown - datetime.now()
+                cooldown_time = str(time_left).split(".")[0]
+                await bot.answer_callback_query(callback_query.id, "✅")
+                await bot.edit_message_text(f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`", 
+                                            chat_id=chat_id, 
+                                            message_id=callback_query.message.message_id, parse_mode="Markdown")
+                await asyncio.sleep(3600)
+                try:
+                    await bot.delete_message(chat_id, callback_query.message.message_id)
+                except MessageCantBeDeleted:
+                    pass
+
+        initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
+        if initial_balance is None or int(initial_balance) < bet:
+            await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+            return
+
+        new_balance = int(initial_balance) - bet
+        cursor.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
+        conn.commit()
+
+        await cache.set(f"bet_{user_id}_{chat_id}", str(bet))
+
+
+        keyboard = InlineKeyboardMarkup(row_width=3)
+        cell_buttons = [InlineKeyboardButton("🧌", callback_data=f"cell_{i}") for i in range(1, 10)]
+        keyboard.add(*cell_buttons)
+        mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
+        await bot.answer_callback_query(callback_query.id, "✅")
+        await bot.edit_message_text(f"🧌 {mention}, знайди москаля: ", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+
+    elif callback_query.data.startswith('cell_'):
+        _, cell = callback_query.data.split('_')
+        cell = int(cell)
+
+        mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
+
+        cursor.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
+        balance_after_bet = cursor.fetchone()[0]
+        bet = await cache.get(f"bet_{user_id}_{chat_id}")
+        bet = int(bet)
+        win = random.random() < 0.4
+
+        if win:
+            bet_won = bet * 2 
+            new_balance = balance_after_bet + bet_won
+            cursor.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
+            conn.commit()
+            message = f"🥇 {mention}, вітаю! Ти знайшов і вбив москаля, і з нього випало `{bet_won}` кг\n🏷️ Тепер у тебе: `{new_balance}` кг"
+        else:
+            message = f"😔 {mention}, на жаль, ти програв\n🏷️ У тебе залишилося: `{balance_after_bet}` кг"
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute("INSERT OR REPLACE INTO cooldowns (user_id, chat_id, game) VALUES (?, ?, ?)", (user_id, chat_id, now))
+        conn.commit()
+
+        await bot.answer_callback_query(callback_query.id, "✅")
+        await bot.edit_message_text(message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 #/give-----
 @dp.message_handler(commands=['give'])
@@ -281,7 +406,7 @@ async def give(message: types.Message):
         last_given = cursor.fetchone()
 
         if last_given and last_given[0]:
-            last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S.%f')
+            last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S.%f') 
             if last_given + timedelta(hours=12) > now:
                 cooldown_time = (last_given + timedelta(hours=12)) - now
                 cooldown_time = str(cooldown_time).split('.')[0]
@@ -294,6 +419,7 @@ async def give(message: types.Message):
                     pass
         else:
             last_given = None
+
 
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, chat_id))
         result = cursor.fetchone()
@@ -323,7 +449,6 @@ async def give(message: types.Message):
             await bot.delete_message(message.chat.id, message.message_id)
         except MessageCantBeDeleted:
                 pass
-
     else:
         reply = await bot.send_message(message.chat.id, "⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
         await asyncio.sleep(3600)
@@ -376,7 +501,7 @@ async def give_inline(callback_query: CallbackQuery):
         cursor.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?) ON CONFLICT(user_id, chat_id) DO UPDATE SET value = value + ?', (receiver_id, callback_query.message.chat.id, value, value))
         conn.commit()
 
-        cursor.execute('UPDATE cooldowns SET give = ? WHERE user_id = ? AND chat_id = ?', (str(datetime.now()), giver_id, callback_query.message.chat.id))
+        cursor.execute('UPDATE cooldowns SET give = ? WHERE user_id = ? AND chat_id = ?', (datetime.now(), giver_id, callback_query.message.chat.id))
         conn.commit()
 
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, callback_query.message.chat.id))
@@ -540,7 +665,7 @@ async def leave_inline(callback_query: CallbackQuery):
 
     if callback_query.data == 'confirm_leave':
         cursor.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        # cursor.execute('UPDATE cooldowns SET killru = NULL, give = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) # Для тестування
+        # cursor.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) # Для тестування
         conn.commit()
         await bot.answer_callback_query(callback_query.id, "✅ Успішно")
         await bot.edit_message_text(f"🤬 {mention}, ти покинув гру, і тебе було видалено з бази даних", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
@@ -806,6 +931,24 @@ async def edit(message: types.Message):
         except MessageCantBeDeleted:
             pass
             
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     aiogram.utils.executor.start_polling(dp)
