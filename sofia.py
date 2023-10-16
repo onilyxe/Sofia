@@ -344,7 +344,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
         last_played = cursor.fetchone()
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=12)
+            cooldown = timedelta(hours=3)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
