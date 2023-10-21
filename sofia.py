@@ -10,7 +10,7 @@ import psutil
 import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, BotKicked, ChatNotFound
+from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, BotKicked, ChatNotFound, MessageToDeleteNotFound
 from datetime import datetime, timedelta, time
 
 # Імпортуємо конфігураційний файл
@@ -20,6 +20,7 @@ try:
     TOKEN = config['TOKEN']['SOFIA']
     ADMIN = int(config['ID']['ADMIN'])
     ALIASES = {k: int(v) for k, v in config['ALIASES'].items()}
+    DELETE = int(config['SETTINGS']['DELETE'])
 except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу: {e}")
     exit()
@@ -104,11 +105,11 @@ def add_chat(chat_id):
 async def start(message: types.Message):
     reply = await message.reply("🫡 Привіт. Я бот для розваг\nВивчай /help")
 
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(message.chat.id, message.message_id)
         await bot.delete_message(message.chat.id, reply.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 #/help-----
@@ -126,22 +127,32 @@ async def help(message: types.Message):
         "\n*/leave* — _Покинути гру_"+
         "\n*/ping* — _статус бота_", parse_mode="Markdown")
 
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(message.chat.id, message.message_id)
         await bot.delete_message(message.chat.id, reply.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 #/killru-----
 @dp.message_handler(commands=['killru'])
 async def killru(message: types.Message):
     add_chat(message.chat.id)
+    if message.from_user.is_bot or message.chat.type == 'channel':
+        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=reply_message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except (MessageCantBeDeleted, BadRequest):
+            pass
+        return
+
     user_id = message.from_user.id
     chat_id = message.chat.id
     now = datetime.now()
     mention = ('[' + message.from_user.username + ']' + '(https://t.me/' + message.from_user.username + ')') if message.from_user.username else message.from_user.first_name
-
     cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     value_killru = cursor.fetchone()
 
@@ -169,13 +180,7 @@ async def killru(message: types.Message):
         cooldown_time_str = f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
         bonus = ""
-        bonus_times = [
-        '00:00:00', '00:13:37', '01:00:00', '01:11:11', '02:00:00', '02:22:22',
-        '22:22:22', '03:00:00', '03:33:33', '04:00:00', '04:20:00', '04:44:44',
-        '05:00:00', '05:55:55', '06:00:00', '07:00:00', '08:00:00', '09:00:00',
-        '10:00:00', '11:00:00', '12:00:00', '13:00:00', '13:33:37', '14:00:00',
-        '15:00:00', '16:00:00', '17:00:00', '18:00:00', '19:00:00', '20:00:00',
-        '21:00:00', '22:00:00', '23:00:00']
+        bonus_times = ['00:00:00', '00:13:37', '01:00:00', '01:11:11', '02:00:00', '02:22:22', '22:22:22', '03:00:00', '03:33:33', '04:00:00', '04:20:00', '04:44:44', '05:00:00', '05:55:55', '06:00:00', '07:00:00', '08:00:00', '09:00:00', '10:00:00', '11:00:00', '11:11:11', '12:00:00', '13:00:00', '13:33:37', '14:00:00', '15:00:00', '16:00:00', '17:00:00', '18:00:00', '19:00:00', '20:00:00', '21:00:00', '22:00:00', '23:00:00']
         if cooldown_time_str in bonus_times:
             bonus = "\n\n🎉 Гарний час! Тримай за удачу `5` кг!"
             cursor.execute('UPDATE user_values SET value = value + 5 WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
@@ -186,23 +191,23 @@ async def killru(message: types.Message):
             parse_mode="Markdown"
         )
 
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id, message.message_id)
             await bot.delete_message(chat_id, cooldown_message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
         return
 
     else:
         cursor.execute('SELECT * FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        exists = cursor.fetchone()
-
-        if exists:
+        if cursor.fetchone():
             cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (now.strftime('%Y-%m-%d'), user_id, chat_id))
         else:
             cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, now.strftime('%Y-%m-%d')))
         conn.commit()
+
+
 
     rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
@@ -224,18 +229,29 @@ async def killru(message: types.Message):
     message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг"
     reply = await bot.send_message(chat_id=message.chat.id, text=message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         if newuser:
             await bot.delete_message(chat_id=message.chat.id, message_id=welcome.message_id)
         await bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 #/my-----
 @dp.message_handler(commands=['my'])
 async def my(message: types.Message):
+    if message.from_user.is_bot or message.chat.type == 'channel':
+        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=reply_message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except (MessageCantBeDeleted, BadRequest):
+            pass
+        return
+
     user_id = message.from_user.id
     chat_id = message.chat.id
     cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
@@ -252,16 +268,27 @@ async def my(message: types.Message):
         rusophobia = result[0]
         response = await message.reply(f"😡 {mention}, твоя русофобія: `{rusophobia}` кг", parse_mode="Markdown", disable_web_page_preview=True)
 
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 #/game-----
 @dp.message_handler(commands=['game'])
 async def start_game(message: types.Message):
+    if message.from_user.is_bot or message.chat.type == 'channel':
+        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=reply_message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except (MessageCantBeDeleted, BadRequest):
+            pass
+        return
+
     user_id = message.from_user.id
     chat_id = message.chat.id
     mention = ('[' + message.from_user.username + ']' + '(https://t.me/' + message.from_user.username + ')') if message.from_user.username else message.from_user.first_name
@@ -276,11 +303,11 @@ async def start_game(message: types.Message):
             time_left = last_played + cooldown - datetime.now()
             cooldown_time = str(time_left).split(".")[0]
             cooldown_message = await bot.send_message(chat_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
-            await asyncio.sleep(3600)
+            await asyncio.sleep(DELETE)
             try:
                 await bot.delete_message(chat_id, message.message_id)
                 await bot.delete_message(chat_id, cooldown_message.message_id)
-            except MessageCantBeDeleted:
+            except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
             return
 
@@ -293,11 +320,11 @@ async def start_game(message: types.Message):
 
     if balance <= 0:
         no_balance_message = await bot.send_message(chat_id, f"⚠️ У тебе недостатньо русофобії для гри")
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id, message.message_id)
             await bot.delete_message(chat_id, no_balance_message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
         return
 
@@ -309,14 +336,14 @@ async def start_game(message: types.Message):
     keyboard.add(*bet_buttons)
     game_message = await bot.send_message(chat_id, f"🧌 {mention}, знайди і вбий москаля\n\n🏷️ У тебе: `{balance}` кг\n🎰 Вибери ставку", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
     await cache.set(f"game_player_{game_message.message_id}", message.from_user.id)
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id, message.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 
-@dp.callback_query_handler(lambda c: c.data.startswith('bet_') or c.data.startswith('cell_') or c.data == 'cancel')
+@dp.callback_query_handler(lambda c: c.data.startswith('bet_') or c.data.startswith('cell_') or c.data == 'cancel' or c.data == 'cancel_cell')
 async def handle_game_buttons(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     chat_id = callback_query.message.chat.id
@@ -329,10 +356,10 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
     if callback_query.data == 'cancel':
         await bot.answer_callback_query(callback_query.id, "✅")
         await bot.edit_message_text("⚠️ Гру скасовано", chat_id=chat_id, message_id=callback_query.message.message_id)
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id, callback_query.message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
         return
 
@@ -352,10 +379,10 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
                 await bot.edit_message_text(f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`", 
                                             chat_id=chat_id, 
                                             message_id=callback_query.message.message_id, parse_mode="Markdown")
-                await asyncio.sleep(3600)
+                await asyncio.sleep(DELETE)
                 try:
                     await bot.delete_message(chat_id, callback_query.message.message_id)
-                except MessageCantBeDeleted:
+                except (MessageCantBeDeleted, MessageToDeleteNotFound):
                     pass
 
         initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
@@ -370,12 +397,42 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
         await cache.set(f"bet_{user_id}_{chat_id}", str(bet))
 
 
+        potential_win = bet * 2
+
         keyboard = InlineKeyboardMarkup(row_width=3)
         cell_buttons = [InlineKeyboardButton("🧌", callback_data=f"cell_{i}") for i in range(1, 10)]
+        cell_buttons.append(InlineKeyboardButton("❌ Відміна", callback_data="cancel_cell"))
         keyboard.add(*cell_buttons)
         mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
         await bot.answer_callback_query(callback_query.id, "✅")
-        await bot.edit_message_text(f"🧌 {mention}, знайди москаля: ", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+        await bot.edit_message_text(
+            f"🧌 {mention}, знайди москаля:\n\n"
+            f"🏷️ Твоя ставка: `{bet} кг`\n"
+            f"💰 Можливий виграш: `{potential_win} кг`", 
+            chat_id=chat_id, 
+            message_id=callback_query.message.message_id, 
+            reply_markup=keyboard, 
+            parse_mode="Markdown", 
+            disable_web_page_preview=True
+        )
+
+    elif callback_query.data.startswith('cancel_cell'):
+        bet = await cache.get(f"bet_{user_id}_{chat_id}")
+        bet = int(bet)
+        cursor.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
+        current_balance = cursor.fetchone()[0]
+        new_balance = current_balance + bet
+        cursor.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
+        conn.commit()
+
+        await bot.answer_callback_query(callback_query.id, "✅")
+        await bot.edit_message_text(f"⚠️ Гру скасовано. Твоя ставка в `{bet} кг` повернута", chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown")
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id, callback_query.message.message_id)
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+            pass
+        return
 
     elif callback_query.data.startswith('cell_'):
         _, cell = callback_query.data.split('_')
@@ -387,16 +444,16 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
         balance_after_bet = cursor.fetchone()[0]
         bet = await cache.get(f"bet_{user_id}_{chat_id}")
         bet = int(bet)
-        win = random.random() < 0.3
+        win = random.random() < 0.4
 
         if win:
             bet_won = bet * 2 
-            new_balance = balance_after_bet + bet_won
+            new_balance = balance_after_bet + bet_won + bet
             cursor.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
             conn.commit()
             message = f"🥇 {mention}, вітаю! Ти знайшов і вбив москаля, і з нього випало `{bet_won}` кг\n🏷️ Тепер у тебе: `{new_balance}` кг"
         else:
-            message = f"😔 {mention}, на жаль, ти програв\n🏷️ У тебе залишилося: `{balance_after_bet}` кг"
+            message = f"😔 {mention}, на жаль, ти програв `{bet}` кг\n🏷️ У тебе залишилося: `{balance_after_bet}` кг"
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute("INSERT OR REPLACE INTO cooldowns (user_id, chat_id, game) VALUES (?, ?, ?)", (user_id, chat_id, now))
@@ -408,16 +465,27 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
 #/give-----
 @dp.message_handler(commands=['give'])
 async def give(message: types.Message):
+    if message.from_user.is_bot or message.chat.type == 'channel':
+        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=reply_message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except (MessageCantBeDeleted, BadRequest):
+            pass
+        return
+
     global givers
     if message.reply_to_message and message.from_user.id != message.reply_to_message.from_user.id:
         parts = message.text.split()
         if len(parts) != 2:
             reply = await bot.send_message(message.chat.id, "⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
-            await asyncio.sleep(3600)
+            await asyncio.sleep(DELETE)
             try:
                 await bot.delete_message(message.chat.id, message.message_id)
                 await bot.delete_message(message.chat.id, reply.message_id)
-            except MessageCantBeDeleted:
+            except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
 
         try:
@@ -427,11 +495,11 @@ async def give(message: types.Message):
 
         except ValueError:
             reply = await bot.send_message(message.chat.id, "🤨 Типо розумний? Введи плюсове і ціле число. Наприклад: `/give 5` у відповідь на повідомлення", parse_mode="Markdown")
-            await asyncio.sleep(3600)
+            await asyncio.sleep(DELETE)
             try:
                 await bot.delete_message(message.chat.id, message.message_id)
                 await bot.delete_message(message.chat.id, reply.message_id)
-            except MessageCantBeDeleted:
+            except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
 
         giver_id = message.from_user.id
@@ -447,11 +515,11 @@ async def give(message: types.Message):
                 cooldown_time = (last_given + timedelta(hours=12)) - now
                 cooldown_time = str(cooldown_time).split('.')[0]
                 reply = await bot.send_message(message.chat.id, f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
-                await asyncio.sleep(3600)
+                await asyncio.sleep(DELETE)
                 try:
                     await bot.delete_message(message.chat.id, message.message_id)
                     await bot.delete_message(message.chat.id, reply.message_id)
-                except MessageCantBeDeleted:
+                except (MessageCantBeDeleted, MessageToDeleteNotFound):
                     pass
         else:
             last_given = None
@@ -461,11 +529,11 @@ async def give(message: types.Message):
         result = cursor.fetchone()
         if not result or result[0] < value:
             reply = await bot.send_message(message.chat.id, f"⚠️ У тебе `{result[0] if result else 0}` кг. Цього недостатньо", parse_mode="Markdown")
-            await asyncio.sleep(3600)
+            await asyncio.sleep(DELETE)
             try:
                 await bot.delete_message(message.chat.id, message.message_id)
                 await bot.delete_message(message.chat.id, reply.message_id)
-            except MessageCantBeDeleted:
+            except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
 
         inline = InlineKeyboardMarkup(row_width=2)
@@ -480,18 +548,18 @@ async def give(message: types.Message):
 
         await cache.set(f"givers_{sent_message.message_id}", message.from_user.id)
 
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(message.chat.id, message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
     else:
         reply = await bot.send_message(message.chat.id, "⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(message.chat.id, message.message_id)
             await bot.delete_message(message.chat.id, reply.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
 
 
@@ -516,10 +584,10 @@ async def give_inline(callback_query: CallbackQuery):
             cooldown_time = str(cooldown_time).split('.')[0]
             reply = await bot.edit_message_text(
                 text=f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`", chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id, parse_mode="Markdown")
-            await asyncio.sleep(3600)
+            await asyncio.sleep(DELETE)
             try:
                 await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
-            except MessageCantBeDeleted:
+            except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
             return
         else:
@@ -555,10 +623,10 @@ async def give_inline(callback_query: CallbackQuery):
         await bot.answer_callback_query(callback_query.id, "❌ Скасовано")
         await bot.edit_message_text(text="❌ Передача русофобії скасована", chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
 
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
 
 #/globaltop-----
@@ -594,11 +662,11 @@ async def show_globaltop(message: types.Message, limit: int, title: str):
 
         response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 
@@ -640,11 +708,11 @@ async def show_top(message: types.Message, limit: int, title: str):
 
         response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 
@@ -661,6 +729,17 @@ async def top(message: types.Message):
 #/leave-----
 @dp.message_handler(commands=['leave'])
 async def leave(message: types.Message):
+    if message.from_user.is_bot or message.chat.type == 'channel':
+        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=reply_message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except (MessageCantBeDeleted, BadRequest):
+            pass
+        return
+
     inline = InlineKeyboardMarkup(row_width=2)
     inline.add(InlineKeyboardButton("✅ Так", callback_data="confirm_leave"), InlineKeyboardButton("❌ Ні", callback_data="cancel_leave"))
     
@@ -673,19 +752,19 @@ async def leave(message: types.Message):
 
     if not user_exists:
         msg = await bot.send_message(chat_id, f"😯 {mention}, ти й так не граєш", parse_mode="Markdown", disable_web_page_preview=True)
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=chat_id, message_id=msg.message_id)
             await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
     else:
         msg = await bot.send_message(chat_id, f"😡 {mention}, ти впевнений, що хочеш ливнути з гри? Твої дані буде видалено з бази даних", reply_markup=inline, parse_mode="Markdown", disable_web_page_preview=True)
         await cache.set(f"leavers_{msg.message_id}", user_id)
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
 
 
@@ -713,10 +792,10 @@ async def leave_inline(callback_query: CallbackQuery):
     else:
         await bot.answer_callback_query(callback_query.id, "❌ Скасовано")
         await bot.edit_message_text(f"🫡 {mention}, ти залишився у грі", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=chat_id, message_id=callback_query.message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
 
 #/ping-----
@@ -744,13 +823,14 @@ async def ping(message: types.Message):
         f"📊 Кількість запитів\n"
         f"_За сьогодні:_ `{today}`\n"
         f"_За тиждень:_ `{last_week}`\n"
-        f"_За весь час:_ `{all_time}`", parse_mode="Markdown")
+        f"_За весь час:_ `{all_time}`\n\n"
+        f"`v1.8`", parse_mode="Markdown")
 
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(message.chat.id, message.message_id)
         await bot.delete_message(text.chat.id, text.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
     return
 
@@ -786,11 +866,11 @@ async def chatlist(message: types.Message):
 
         reply = await message.reply(chat_list, disable_web_page_preview=True)
     
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         await bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 #/message-----
@@ -804,11 +884,11 @@ async def message(message: types.Message):
     if len(parts) < 2:
         info_message = await message.reply(
             "ℹ️ Розсилка повідомлень\n\n/message `text` - в усі чати\n/message `ID/alias text` - в один чат", parse_mode="Markdown")
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
             await bot.delete_message(chat_id=message.chat.id, message_id=info_message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
         return
 
@@ -825,11 +905,11 @@ async def message(message: types.Message):
 
     if not text_to_send.strip():
         error_message = await message.reply("⚠️ Текст повідомлення не може бути пустим")
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
             await bot.delete_message(chat_id=message.chat.id, message_id=error_message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
         return
 
@@ -858,10 +938,10 @@ async def message(message: types.Message):
         reply_text += "\n\n⚠️ Помилки:\n" + error_messages
 
     await message.reply(reply_text, parse_mode="Markdown")
-    await asyncio.sleep(3600)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-    except MessageCantBeDeleted:
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 #/edit-----
@@ -950,46 +1030,28 @@ async def edit(message: types.Message):
         await bot.send_message(chat_id=message.chat.id,
                                text=f"🆒 Значення {mention} було змінено на `{updated_value}` кг", parse_mode="Markdown", disable_web_page_preview=True)
 
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
     except ValueError as e:
         error_message = await message.reply(str(e))
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
             await bot.delete_message(chat_id=message.chat.id, message_id=error_message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
     except OverflowError:
         error_message = await message.reply("⚠️ Занадто велике значення. Спробуй менше число", parse_mode="Markdown")
-        await asyncio.sleep(3600)
+        await asyncio.sleep(DELETE)
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
             await bot.delete_message(chat_id=message.chat.id, message_id=error_message.message_id)
-        except MessageCantBeDeleted:
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
             
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 if __name__ == '__main__':
     aiogram.utils.executor.start_polling(dp)
