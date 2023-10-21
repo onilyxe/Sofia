@@ -27,10 +27,14 @@ ADMIN = 000000000
 [ALIASES]
 chatname1= -1000000000000
 chatname1 = -1000000000001
+
+[SETTINGS]
+DELETE = 3600
 ```
 * `TOKEN` is token for your Telegram bot. You can get it here: [BotFather](https://t.me/BotFather)
 * `ADMIN` is your ID
 * `ALIASES` Aliases for the chat ID so you don't have to type it in
+* `DELETE` Auto-delete message timer in seconds
 
 Running
 ------------
