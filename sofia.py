@@ -21,6 +21,7 @@ try:
     ADMIN = int(config['ID']['ADMIN'])
     ALIASES = {k: int(v) for k, v in config['ALIASES'].items()}
     DELETE = int(config['SETTINGS']['DELETE'])
+    VERSION = (config['SETTINGS']['VERSION'])
 except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу: {e}")
     exit()
@@ -91,7 +92,7 @@ dp.middleware.setup(DatabaseMiddleware())
 conn = sqlite3.connect('sofia.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_values (user_id INTEGER, chat_id INTEGER, value INTEGER, PRIMARY KEY(user_id, chat_id))''')
-cursor.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru DATE, give TIMESTAMP, game TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru TIMESTAMP, give TIMESTAMP, game TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
 cursor.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
 cursor.execute('''CREATE TABLE IF NOT EXISTS queries (id INTEGER PRIMARY KEY, datetime TIMESTAMP NOT NULL, count INTEGER NOT NULL DEFAULT 0)''')
 
@@ -138,8 +139,8 @@ async def help(message: types.Message):
 @dp.message_handler(commands=['killru'])
 async def killru(message: types.Message):
     add_chat(message.chat.id)
-    if message.from_user.is_bot or message.chat.type == 'channel':
-        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+    if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -166,11 +167,12 @@ async def killru(message: types.Message):
 
     cursor.execute('SELECT killru FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     cooldown = cursor.fetchone()
-    cooldown_killru = None
+    cooldown_killru_date = None
 
     if cooldown and cooldown[0]:
-        cooldown_killru = datetime.strptime(cooldown[0], '%Y-%m-%d').date()
-    if cooldown_killru and now.date() <= cooldown_killru:
+        cooldown_killru_date = datetime.strptime(cooldown[0], '%Y-%m-%d %H:%M:%S').date()
+
+    if cooldown_killru_date and now.date() <= cooldown_killru_date:
         next_day = now + timedelta(days=1)
         midnight = datetime.combine(next_day, datetime.min.time())
         remaining_time = midnight - now
@@ -202,12 +204,10 @@ async def killru(message: types.Message):
     else:
         cursor.execute('SELECT * FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
         if cursor.fetchone():
-            cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (now.strftime('%Y-%m-%d'), user_id, chat_id))
+            cursor.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (now.strftime('%Y-%m-%d %H:%M:%S'), user_id, chat_id))
         else:
-            cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, now.strftime('%Y-%m-%d')))
+            cursor.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, now.strftime('%Y-%m-%d %H:%M:%S')))
         conn.commit()
-
-
 
     rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
@@ -241,8 +241,8 @@ async def killru(message: types.Message):
 #/my-----
 @dp.message_handler(commands=['my'])
 async def my(message: types.Message):
-    if message.from_user.is_bot or message.chat.type == 'channel':
-        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+    if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -278,8 +278,8 @@ async def my(message: types.Message):
 #/game-----
 @dp.message_handler(commands=['game'])
 async def start_game(message: types.Message):
-    if message.from_user.is_bot or message.chat.type == 'channel':
-        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+    if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -465,8 +465,8 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
 #/give-----
 @dp.message_handler(commands=['give'])
 async def give(message: types.Message):
-    if message.from_user.is_bot or message.chat.type == 'channel':
-        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+    if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -510,7 +510,7 @@ async def give(message: types.Message):
         last_given = cursor.fetchone()
 
         if last_given and last_given[0]:
-            last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S.%f') 
+            last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S') 
             if last_given + timedelta(hours=12) > now:
                 cooldown_time = (last_given + timedelta(hours=12)) - now
                 cooldown_time = str(cooldown_time).split('.')[0]
@@ -523,7 +523,6 @@ async def give(message: types.Message):
                     pass
         else:
             last_given = None
-
 
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, chat_id))
         result = cursor.fetchone()
@@ -578,7 +577,7 @@ async def give_inline(callback_query: CallbackQuery):
     cursor.execute('SELECT give FROM cooldowns WHERE user_id = ? AND chat_id = ? AND give IS NOT NULL', (giver_id, callback_query.message.chat.id))
     last_given = cursor.fetchone()
     if last_given and last_given[0]:
-        last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S.%f')
+        last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S')
         if last_given + timedelta(hours=12) > now:
             cooldown_time = (last_given + timedelta(hours=12)) - now
             cooldown_time = str(cooldown_time).split('.')[0]
@@ -605,7 +604,7 @@ async def give_inline(callback_query: CallbackQuery):
         cursor.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?) ON CONFLICT(user_id, chat_id) DO UPDATE SET value = value + ?', (receiver_id, callback_query.message.chat.id, value, value))
         conn.commit()
 
-        cursor.execute('UPDATE cooldowns SET give = ? WHERE user_id = ? AND chat_id = ?', (datetime.now(), giver_id, callback_query.message.chat.id))
+        cursor.execute('UPDATE cooldowns SET give = ? WHERE user_id = ? AND chat_id = ?', (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), giver_id, callback_query.message.chat.id))
         conn.commit()
 
         cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, callback_query.message.chat.id))
@@ -729,8 +728,8 @@ async def top(message: types.Message):
 #/leave-----
 @dp.message_handler(commands=['leave'])
 async def leave(message: types.Message):
-    if message.from_user.is_bot or message.chat.type == 'channel':
-        reply_message = await message.reply("⚠️ Команда не доступна для каналів і ботів")
+    if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -824,7 +823,7 @@ async def ping(message: types.Message):
         f"_За сьогодні:_ `{today}`\n"
         f"_За тиждень:_ `{last_week}`\n"
         f"_За весь час:_ `{all_time}`\n\n"
-        f"`v1.8`", parse_mode="Markdown")
+        f"`{VERSION}`", parse_mode="Markdown")
 
     await asyncio.sleep(DELETE)
     try:
