@@ -172,7 +172,7 @@ async def killru(message: types.Message):
     if cooldown and cooldown[0]:
         cooldown_killru_date = datetime.strptime(cooldown[0], '%Y-%m-%d %H:%M:%S').date()
 
-    if cooldown_killru_date and now.date() <= cooldown_killru_date:
+    if cooldown_killru_date and now.date() == cooldown_killru_date:
         next_day = now + timedelta(days=1)
         midnight = datetime.combine(next_day, datetime.min.time())
         remaining_time = midnight - now
