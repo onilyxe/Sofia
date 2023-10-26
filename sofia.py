@@ -444,7 +444,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
         balance_after_bet = cursor.fetchone()[0]
         bet = await cache.get(f"bet_{user_id}_{chat_id}")
         bet = int(bet)
-        win = random.random() < 0.4
+        win = random.random() < 0.45
 
         if win:
             bet_won = bet * 2 
