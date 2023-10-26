@@ -456,7 +456,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             message = f"😔 {mention}, на жаль, ти програв `{bet}` кг\n🏷️ У тебе залишилося: `{balance_after_bet}` кг"
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute("INSERT OR REPLACE INTO cooldowns (user_id, chat_id, game) VALUES (?, ?, ?)", (user_id, chat_id, now))
+        cursor.execute("UPDATE cooldowns SET game = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
         conn.commit()
 
         await bot.answer_callback_query(callback_query.id, "✅")
