@@ -101,6 +101,11 @@ def add_chat(chat_id):
     cursor.execute('INSERT OR IGNORE INTO chats (chat_id) VALUES (?)', (chat_id,))
     conn.commit()
 
+# Видаляє chat_id із бази даних для розсилки
+def remove_chat(chat_id):
+    cursor.execute('DELETE FROM chats WHERE chat_id = ?', (chat_id,))
+    conn.commit()
+
 #/start-----
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
@@ -138,9 +143,8 @@ async def help(message: types.Message):
 #/killru-----
 @dp.message_handler(commands=['killru'])
 async def killru(message: types.Message):
-    add_chat(message.chat.id)
     if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
-        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -149,6 +153,8 @@ async def killru(message: types.Message):
         except (MessageCantBeDeleted, BadRequest):
             pass
         return
+
+    add_chat(message.chat.id)
 
     user_id = message.from_user.id
     chat_id = message.chat.id
@@ -242,7 +248,7 @@ async def killru(message: types.Message):
 @dp.message_handler(commands=['my'])
 async def my(message: types.Message):
     if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
-        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -279,7 +285,7 @@ async def my(message: types.Message):
 @dp.message_handler(commands=['game'])
 async def start_game(message: types.Message):
     if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
-        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -465,8 +471,21 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
 #/give-----
 @dp.message_handler(commands=['give'])
 async def give(message: types.Message):
+    receiver_id = message.reply_to_message.from_user.id
+    receiver_is_bot = message.reply_to_message.from_user.is_bot
+
+    if receiver_is_bot:
+        reply = await bot.send_message(message.chat.id, "⚠️ Боти не можуть грати")
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(message.chat.id, message.message_id)
+            await bot.delete_message(message.chat.id, reply.message_id)
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+            pass
+        return
+
     if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
-        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -521,6 +540,7 @@ async def give(message: types.Message):
                     await bot.delete_message(message.chat.id, reply.message_id)
                 except (MessageCantBeDeleted, MessageToDeleteNotFound):
                     pass
+                return
         else:
             last_given = None
 
@@ -651,13 +671,11 @@ async def show_globaltop(message: types.Message, limit: int, title: str):
         user_names = await asyncio.gather(*tasks)
 
         message_text = f'{title}:\n'
-        medals = ["🥇", "🥈", "🥉"]
         count = 0
         for user_name, (_, rusophobia) in zip(user_names, results):
             if user_name:
-                medal = medals[count] if count < 3 else f"{count + 1}."
-                message_text += f'{medal} {user_name}: {rusophobia} кг\n'
                 count += 1
+                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
 
         response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -697,13 +715,11 @@ async def show_top(message: types.Message, limit: int, title: str):
         user_names = await asyncio.gather(*tasks)
 
         message_text = f'{title}:\n'
-        medals = ["🥇", "🥈", "🥉"]
         count = 0
         for user_name, (_, rusophobia) in zip(user_names, results):
             if user_name:
-                medal = medals[count] if count < 3 else f"{count + 1}."
-                message_text += f'{medal} {user_name}: {rusophobia} кг\n'
                 count += 1
+                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
 
         response = await message.reply(message_text, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -729,7 +745,7 @@ async def top(message: types.Message):
 @dp.message_handler(commands=['leave'])
 async def leave(message: types.Message):
     if message.from_user.is_bot or message.chat.type == 'channel' or message.chat.type == 'private':
-        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів, і в особистих повідомленнях")
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, і в особистих повідомленнях")
 
         await asyncio.sleep(DELETE)
         try:
@@ -784,7 +800,7 @@ async def leave_inline(callback_query: CallbackQuery):
 
     if callback_query.data == 'confirm_leave':
         cursor.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        # cursor.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) # Для тестування
+        cursor.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) # Для тестування
         conn.commit()
         await bot.answer_callback_query(callback_query.id, "✅ Успішно")
         await bot.edit_message_text(f"🤬 {mention}, ти покинув гру, і тебе було видалено з бази даних", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
@@ -860,8 +876,10 @@ async def chatlist(message: types.Message):
                     chat_list += f"🔹 {chat[0]}, {chat_type}, {chat_title}\n"
             except BotKicked:
                 chat_list += f"🔹 {chat[0]} - вилучено\n"
+                remove_chat(chat[0])
             except ChatNotFound:
                 chat_list += f"🔹 {chat[0]} - не знайдено\n"
+                remove_chat(chat[0])
 
         reply = await message.reply(chat_list, disable_web_page_preview=True)
     
