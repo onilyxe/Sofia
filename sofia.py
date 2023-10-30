@@ -531,8 +531,8 @@ async def give(message: types.Message):
 
         if last_given and last_given[0]:
             last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S') 
-            if last_given + timedelta(hours=12) > now:
-                cooldown_time = (last_given + timedelta(hours=12)) - now
+            if last_given + timedelta(hours=5) > now:
+                cooldown_time = (last_given + timedelta(hours=5)) - now
                 cooldown_time = str(cooldown_time).split('.')[0]
                 reply = await bot.send_message(message.chat.id, f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`", parse_mode="Markdown")
                 await asyncio.sleep(DELETE)
@@ -599,8 +599,8 @@ async def give_inline(callback_query: CallbackQuery):
     last_given = cursor.fetchone()
     if last_given and last_given[0]:
         last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S')
-        if last_given + timedelta(hours=12) > now:
-            cooldown_time = (last_given + timedelta(hours=12)) - now
+        if last_given + timedelta(hours=5) > now:
+            cooldown_time = (last_given + timedelta(hours=5)) - now
             cooldown_time = str(cooldown_time).split('.')[0]
             reply = await bot.edit_message_text(
                 text=f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`", chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id, parse_mode="Markdown")
