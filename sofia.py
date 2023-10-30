@@ -475,12 +475,13 @@ async def give(message: types.Message):
     receiver_is_bot = message.reply_to_message.from_user.is_bot
 
     if receiver_is_bot:
-        reply = await bot.send_message(message.chat.id, "⚠️ Боти не можуть грати")
+        reply_message = await message.reply("⚠️ Боти не можуть грати")
+
         await asyncio.sleep(DELETE)
         try:
-            await bot.delete_message(message.chat.id, message.message_id)
-            await bot.delete_message(message.chat.id, reply.message_id)
-        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+            await bot.delete_message(chat_id=message.chat.id, message_id=reply_message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except (MessageCantBeDeleted, BadRequest):
             pass
         return
 
@@ -800,7 +801,7 @@ async def leave_inline(callback_query: CallbackQuery):
 
     if callback_query.data == 'confirm_leave':
         cursor.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        cursor.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) # Для тестування
+        # cursor.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) # Для тестування
         conn.commit()
         await bot.answer_callback_query(callback_query.id, "✅ Успішно")
         await bot.edit_message_text(f"🤬 {mention}, ти покинув гру, і тебе було видалено з бази даних", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
