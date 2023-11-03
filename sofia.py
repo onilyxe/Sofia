@@ -514,6 +514,16 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
 #/give-----
 @dp.message_handler(commands=['give'])
 async def give(message: types.Message):
+    if not message.reply_to_message:
+        reply = await message.reply("⚙️ Використовуй `/give N` у відповідь на повідомлення", parse_mode="Markdown")
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(message.chat.id, message.message_id)
+            await bot.delete_message(message.chat.id, reply.message_id)
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+            pass
+        return
+
     receiver_id = message.reply_to_message.from_user.id
     receiver_is_bot = message.reply_to_message.from_user.is_bot
 
@@ -550,6 +560,7 @@ async def give(message: types.Message):
                 await bot.delete_message(message.chat.id, reply.message_id)
             except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
+            return
 
         try:
             value = int(parts[1])
@@ -564,6 +575,7 @@ async def give(message: types.Message):
                 await bot.delete_message(message.chat.id, reply.message_id)
             except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
+            return
 
         giver_id = message.from_user.id
         chat_id = message.chat.id
@@ -598,6 +610,7 @@ async def give(message: types.Message):
                 await bot.delete_message(message.chat.id, reply.message_id)
             except (MessageCantBeDeleted, MessageToDeleteNotFound):
                 pass
+            return
 
         inline = InlineKeyboardMarkup(row_width=2)
         inline_yes = InlineKeyboardButton('✅ Так', callback_data=f'give_{value}_yes_{message.reply_to_message.from_user.id}')
@@ -691,6 +704,7 @@ async def give_inline(callback_query: CallbackQuery):
             await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
         except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
+        return
 
 #/globaltop-----
 async def show_globaltop(message: types.Message, limit: int, title: str):
