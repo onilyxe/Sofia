@@ -11,7 +11,7 @@ import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher.handler import CancelHandler
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, BotKicked, ChatNotFound, MessageToDeleteNotFound
+from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, BotKicked, ChatNotFound, MessageToDeleteNotFound, Unauthorized
 from datetime import datetime, timedelta, time
 
 # Імпортуємо конфігураційний файл
@@ -922,7 +922,11 @@ async def chatlist(message: types.Message):
             remove_chat(chat_id[0])
 
         except ChatNotFound:
-            removed_chats_info += f"🔹 {chat_id[0]} - не знайдено\n"
+            removed_chats_info += f"🔹 {chat_id[0]} - вилучено\n"
+            remove_chat(chat_id[0])
+
+        except Unauthorized:
+            removed_chats_info += f"🔹 {chat_id[0]} - вилучено\n"
             remove_chat(chat_id[0])
 
     if removed_chats_info:
