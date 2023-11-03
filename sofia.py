@@ -9,6 +9,7 @@ import aiogram
 import psutil
 import os
 from aiogram import Bot, Dispatcher, types
+from aiogram.dispatcher.handler import CancelHandler
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, BotKicked, ChatNotFound, MessageToDeleteNotFound
 from datetime import datetime, timedelta, time
@@ -22,6 +23,9 @@ try:
     ALIASES = {k: int(v) for k, v in config['ALIASES'].items()}
     DELETE = int(config['SETTINGS']['DELETE'])
     VERSION = (config['SETTINGS']['VERSION'])
+    BAN = int(config['SPAM']['BAN'])
+    SPEED = int(config['SPAM']['SPEED'])
+    MESSAGES = int(config['SPAM']['MESSAGES'])
 except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу: {e}")
     exit()
@@ -88,6 +92,42 @@ class DatabaseMiddleware(aiogram.dispatcher.middlewares.BaseMiddleware):
 
 dp.middleware.setup(DatabaseMiddleware())
 
+# Захист від спаму
+banlist = {}
+BANN = timedelta(minutes=BAN)
+SPEEDD = timedelta(seconds=SPEED)
+class RateLimitMiddleware(aiogram.dispatcher.middlewares.BaseMiddleware):
+    async def on_process_message(self, message: types.Message, data: dict):
+        user_id = message.from_user.id
+        current_time = datetime.now()
+
+        if user_id in banlist:
+            first_message_time, message_count, mute_time = banlist[user_id]
+
+            if mute_time and current_time < mute_time + BANN:
+                raise CancelHandler()
+
+            if current_time - first_message_time <= SPEEDD:
+                message_count += 1
+                if message_count >= MESSAGES:
+                    banlist[user_id] = (first_message_time, message_count, current_time)
+                    send = await bot.send_voice(chat_id=message.chat.id, voice=open('sound.ogg', 'rb'))
+                    await asyncio.sleep(DELETE)
+                    try:
+                        await bot.delete_message(message.chat.id, message.message_id)
+                        await bot.delete_message(message.chat.id, send.message_id)
+                    except (MessageCantBeDeleted, MessageToDeleteNotFound):
+                        pass
+                    raise CancelHandler()
+                else:
+                    banlist[user_id] = (first_message_time, message_count, mute_time)
+            else:
+                banlist[user_id] = (current_time, 1, mute_time)
+        else:
+            banlist[user_id] = (current_time, 1, None)
+
+dp.middleware.setup(RateLimitMiddleware())
+
 # Підключення до бази даних SQLite і створення таблиць
 conn = sqlite3.connect('sofia.db', check_same_thread=False)
 cursor = conn.cursor()
@@ -153,7 +193,6 @@ async def killru(message: types.Message):
         except (MessageCantBeDeleted, BadRequest):
             pass
         return
-
     add_chat(message.chat.id)
 
     user_id = message.from_user.id
@@ -280,6 +319,7 @@ async def my(message: types.Message):
         await bot.delete_message(chat_id=message.chat.id, message_id=response.message_id)
     except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
+    return
 
 #/game-----
 @dp.message_handler(commands=['game'])
@@ -347,6 +387,7 @@ async def start_game(message: types.Message):
         await bot.delete_message(chat_id, message.message_id)
     except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
+    return
 
 
 @dp.callback_query_handler(lambda c: c.data.startswith('bet_') or c.data.startswith('cell_') or c.data == 'cancel' or c.data == 'cancel_cell')
@@ -390,6 +431,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
                     await bot.delete_message(chat_id, callback_query.message.message_id)
                 except (MessageCantBeDeleted, MessageToDeleteNotFound):
                     pass
+                return
 
         initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
         if initial_balance is None or int(initial_balance) < bet:
@@ -851,7 +893,7 @@ async def ping(message: types.Message):
     return
 
 #/chatlist-----
-@dp.message_handler(commands=['chatlist'])  
+@dp.message_handler(commands=['chatlist'])
 async def chatlist(message: types.Message):
     if message.from_user.id != ADMIN:
         return
@@ -859,30 +901,37 @@ async def chatlist(message: types.Message):
     cursor.execute('SELECT chat_id FROM chats')
     chats = cursor.fetchall()
 
+    chat_list = "💬 Список чатів бота:\n\n"
+    removed_chats_info = ""
+
+    for chat_id in chats:
+        try:
+            chat_info = await bot.get_chat(chat_id[0])
+            chat_title = chat_info.title
+            chat_type = chat_info.type
+            chat_username = chat_info.username
+
+            if chat_username:
+                chat_link = f"@{chat_username}"
+                chat_list += f"🔹 {chat_id[0]}, {chat_type}\n{chat_title} - {chat_link}\n"
+            else:
+                chat_list += f"🔹 {chat_id[0]}, {chat_type}, {chat_title}\n"
+
+        except BotKicked:
+            removed_chats_info += f"🔹 {chat_id[0]} - вилучено\n"
+            remove_chat(chat_id[0])
+
+        except ChatNotFound:
+            removed_chats_info += f"🔹 {chat_id[0]} - не знайдено\n"
+            remove_chat(chat_id[0])
+
+    if removed_chats_info:
+        chat_list += f"\n💢 Список вилучених чатів:\n{removed_chats_info}"
+
     if not chats:
-        reply = await message.reply("😬 Бота не було додано до жодного чату")
-    else:
-        chat_list = "💬 Список чатів бота:\n\n"
-        for chat in chats:
-            try:
-                chat_info = await bot.get_chat(chat[0])
-                chat_title = chat_info.title
-                chat_type = chat_info.type
-                chat_username = chat_info.username
+        chat_list = "😬 Бота не було додано до жодного чату"
 
-                if chat_username:
-                    chat_link = f"@{chat_username}"
-                    chat_list += f"🔹 {chat[0]}, {chat_type}\n{chat_title} - {chat_link}\n"
-                else:
-                    chat_list += f"🔹 {chat[0]}, {chat_type}, {chat_title}\n"
-            except BotKicked:
-                chat_list += f"🔹 {chat[0]} - вилучено\n"
-                remove_chat(chat[0])
-            except ChatNotFound:
-                chat_list += f"🔹 {chat[0]} - не знайдено\n"
-                remove_chat(chat[0])
-
-        reply = await message.reply(chat_list, disable_web_page_preview=True)
+    reply = await message.reply(chat_list, disable_web_page_preview=True)
     
     await asyncio.sleep(DELETE)
     try:
