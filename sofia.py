@@ -136,7 +136,7 @@ dp.middleware.setup(RateLimitMiddleware())
 conn = sqlite3.connect('sofia.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_values (user_id INTEGER, chat_id INTEGER, value INTEGER, PRIMARY KEY(user_id, chat_id))''')
-cursor.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru TIMESTAMP, give TIMESTAMP, game TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru TIMESTAMP, give TIMESTAMP, game TIMESTAMP, dice TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
 cursor.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
 cursor.execute('''CREATE TABLE IF NOT EXISTS queries (id INTEGER PRIMARY KEY, datetime TIMESTAMP NOT NULL, count INTEGER NOT NULL DEFAULT 0)''')
 
@@ -612,7 +612,7 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
         last_played = cursor.fetchone()
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=3)
+            cooldown = timedelta(hours=1)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
