@@ -1,0 +1,199 @@
+# Імпорти
+import configparser
+import aiosqlite
+import datetime
+import asyncio
+import aiogram
+from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted, BadRequest
+from aiogram import Bot, Dispatcher, types
+from datetime import datetime
+
+
+# Імпортуємо конфігураційний файл
+config = configparser.ConfigParser()
+try:
+    config.read('config.ini')
+    TOKEN = config['TOKEN']['BOT']
+    ADMIN = int(config['ID']['ADMIN'])
+    TEST = (config['SETTINGS']['TEST'])
+    DELETE = int(config['SETTINGS']['DELETE'])
+except (FileNotFoundError, KeyError) as e:
+    logging.error(f"Помилка завантаження конфігураційного файлу в functions.py: {e}")
+    exit()
+
+
+# Ініціалізація бота і обробника
+bot = Bot(token=TOKEN)
+dp = Dispatcher(bot)
+
+
+# Підключення до бази даних SQLite і створення таблиць
+async def setup_database():
+    async with aiosqlite.connect('src/database.db') as db:
+        await db.execute('''CREATE TABLE IF NOT EXISTS user_values (user_id INTEGER, chat_id INTEGER, value INTEGER, PRIMARY KEY(user_id, chat_id))''')
+        await db.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru TIMESTAMP, give TIMESTAMP, game TIMESTAMP, dice TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
+        await db.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
+        await db.execute('''CREATE TABLE IF NOT EXISTS queries (id INTEGER PRIMARY KEY, datetime TIMESTAMP NOT NULL, count INTEGER NOT NULL DEFAULT 0)''')
+        await db.commit()
+
+
+# Функція під час старту
+async def startup(dp):
+    await setup_database()
+    if TEST != 'True':
+        startup_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
+        try:
+            await dp.bot.send_message(ADMIN, f"🚀 Старт \n⌚️ `{startup_time}`", parse_mode="Markdown")
+        except Exception as e:
+            print(f"Старт error: {e}")
+
+
+# Функція під час завершення
+async def shutdown(dp):
+    if TEST != 'True':
+        shutdown_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
+        try:
+            await dp.bot.send_message(ADMIN, f"⛔️ Стоп \n⌚️ `{shutdown_time}`", parse_mode="Markdown")
+        except Exception as e:
+            print(f"Стоп error: {e}")
+
+
+# Додає chat_id у базу даних для розсилки
+async def add_chat(chat_id):
+    async with aiosqlite.connect('src/database.db') as db:
+        await db.execute('INSERT OR IGNORE INTO chats (chat_id) VALUES (?)', (chat_id,))
+        await db.commit()
+
+
+# Видаляє chat_id із бази даних для розсилки
+async def remove_chat(chat_id):
+    async with aiosqlite.connect('src/database.db') as db:
+        await db.execute('DELETE FROM chats WHERE chat_id = ?', (chat_id,))
+        await db.commit()
+
+
+# Перевірка на адміна
+async def admin(message: types.Message):
+    if message.from_user.id != ADMIN:
+        return False
+    return True
+
+
+# Перевірка на канал і пп
+async def check_type(message: types.Message):
+    if (message.from_user.is_bot or message.chat.type in ['channel', 'private'] or (message.reply_to_message and message.reply_to_message.from_user.id == 777000)):
+        
+        reply_message = await message.reply("⚠️ Команда недоступна для каналів, ботів і в особистих повідомленнях")
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=reply_message.message_id)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+            pass
+        return True
+    return False
+
+
+# Виведення топа
+async def show_top(message: types.Message, limit: int, title: str):
+    chat_id = message.chat.id
+    async with aiosqlite.connect('src/database.db') as db:
+        async with db.execute(
+            'SELECT user_id, value FROM user_values WHERE chat_id = ? AND value != 0 ORDER BY value DESC LIMIT ?',
+            (chat_id, limit)
+        ) as cursor:
+            results = await cursor.fetchall()
+
+    if not results:
+        await reply_and_delete(message, '😯 Ще ніхто не грав')
+    else:
+        async def username(chat_id, user_id):
+            try:
+                user_info = await bot.get_chat_member(chat_id, user_id)
+                if user_info.user.username:
+                    return f'[{user_info.user.username}](https://t.me/{user_info.user.username})'
+                else:
+                    return user_info.user.full_name
+            except BadRequest:
+                return None
+
+        tasks = [username(chat_id, user_id) for user_id, _ in results]
+        user_names = await asyncio.gather(*tasks)
+
+        message_text = f'{title}:\n'
+        count = 0
+        for user_name, (_, rusophobia) in zip(user_names, results):
+            if user_name:
+                count += 1
+                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
+
+        await reply_and_delete(message, message_text)
+
+
+# Виведення глобального топа
+async def show_globaltop(message: types.Message, limit: int, title: str):
+    async with aiosqlite.connect('src/database.db') as db:
+        async with db.execute(
+            'SELECT user_id, MAX(value) as max_value FROM user_values WHERE value != 0 GROUP BY user_id ORDER BY max_value DESC LIMIT ?',
+            (limit,)
+        ) as cursor:
+            results = await cursor.fetchall()
+
+    if not results:
+        await reply_and_delete(message, '😯 Ще ніхто не грав')
+    else:
+        async def get_username(user_id):
+            try:
+                user_info = await bot.get_chat(user_id)
+                if user_info.username:
+                    return f'[{user_info.username}](https://t.me/{user_info.username})'
+                else:
+                    return user_info.first_name
+            except BadRequest:
+                return None
+
+        tasks = [get_username(user_id) for user_id, _ in results]
+        user_names = await asyncio.gather(*tasks)
+
+        message_text = f'{title}:\n'
+        count = 0
+        for user_name, (_, rusophobia) in zip(user_names, results):
+            if user_name:
+                count += 1
+                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
+
+        await reply_and_delete(message, message_text)
+
+
+# Відповідь на повідомлення та видалення
+async def reply_and_delete(message: types.Message, reply_text):
+    text = await message.reply(reply_text, parse_mode="Markdown", disable_web_page_preview=True)
+    await asyncio.sleep(DELETE)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=text.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
+        pass
+    return
+
+
+# Надсилання повідомлення та видалення ісходного повідомлення
+async def send_and_delete(message: types.Message, chat_id, reply_text):
+    text = await bot.send_message(chat_id=message.chat.id, text=reply_text, parse_mode="Markdown", disable_web_page_preview=True)
+    await asyncio.sleep(DELETE)
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
+        pass
+    return
+
+
+# Редагування та видалення повідомлення
+async def edit_and_delete(message: types.Message, chat_id, message_id, reply_text):
+    await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=reply_text, parse_mode="Markdown", disable_web_page_preview=True)
+    await asyncio.sleep(DELETE)
+    try:
+        await bot.delete_message(chat_id, message_id)
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
+        pass
+    return
