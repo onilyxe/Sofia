@@ -8,7 +8,7 @@ import logging
 import asyncio
 import random
 import math
-from aiogram.utils.exceptions import BadRequest, MessageCantBeDeleted, MessageToDeleteNotFound
+from aiogram.utils.exceptions import MessageCantBeDeleted, MessageToDeleteNotFound
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.executor import start_polling
 from datetime import datetime, timedelta, time
@@ -137,7 +137,6 @@ async def killru(message: types.Message):
             message_text = f"📉 {mention}, твоя русофобія зменшилась на `{abs(rusophobia)}` кг"
 
         message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг"
-
         await send_and_delete(message, chat_id=message.chat.id, reply_text=message_text)
 
 
@@ -216,6 +215,7 @@ async def start_game(message: types.Message):
 
 @dp.callback_query_handler(lambda c: c.data.startswith('bet_') or c.data.startswith('cell_') or c.data == 'cancel' or c.data == 'cancel_cell')
 async def handle_game_buttons(callback_query: types.CallbackQuery):
+ 
     user_id = callback_query.from_user.id
     chat_id = callback_query.message.chat.id
     game_player_id = await cache.get(f"game_player_{callback_query.message.message_id}")
@@ -459,7 +459,6 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             await db.commit()
 
             dice_message = await bot.send_dice(chat_id=chat_id)
-            await asyncio.sleep(4)
             result_dice = dice_message.dice.value
 
             cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -476,12 +475,12 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
                 bet_won = math.ceil(bet * 0.5)
                 new_balance = balance_after_bet + bet_won + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                print(new_balance)
                 win_message = f"🥇 {mention}, ти виграв! \n🎲 Випало `{result_dice}`, {'парне' if result_dice % 2 == 0 else 'непарне'} \n💰 Твій виграш: `{bet_won}` кг\n\n🏷️ Тепер у тебе: `{new_balance}` кг"
             else:
                 win_message = f"😔 {mention}, ти програв \n🎲 Випало `{result_dice}`, {'непарне' if result_dice % 2 != 0 else 'парне'} \n🤜 Втрата: `{bet}` кг\n\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
+            await asyncio.sleep(4)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 

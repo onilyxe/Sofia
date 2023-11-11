@@ -6,8 +6,7 @@ import aiogram
 import logging
 from aiogram.utils.exceptions import MessageCantBeDeleted, BotKicked, ChatNotFound, MessageToDeleteNotFound, Unauthorized
 from src.functions import remove_chat, admin, reply_and_delete, send_and_delete
-from aiogram import types
-from aiogram import Bot
+from aiogram import Bot, types
 
 
 # Імпортуємо конфігураційний файл
@@ -54,7 +53,13 @@ async def chatlist(message: types.Message):
         if removed_chats_info:
             chat_list += f"\n\n\n💢 Список вилучених чатів:\n\n" + '\n'.join(removed_chats_info)
 
-    await reply_and_delete(message, chat_list)
+    reply = await message.reply(chat_list, disable_web_page_preview=True)
+    await asyncio. sleep(DELETE)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
+    except (MessageCantBeDeleted, MessageToDeleteNotFound) :
+        pass
 
 
 #-----/message

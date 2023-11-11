@@ -1,15 +1,12 @@
 # Імпорти
 import configparser
 import aiosqlite
-import asyncio
 import aiogram
 import logging
 import psutil
-from aiogram.utils.exceptions import MessageCantBeDeleted, MessageToDeleteNotFound
 from src.functions import reply_and_delete, show_globaltop, show_top
 from datetime import datetime, timedelta
-from aiogram import types
-from aiogram import Bot
+from aiogram import Bot, types
 
 
 # Імпортуємо конфігураційний файл
@@ -44,9 +41,9 @@ async def help(message: types.Message):
         "\n*🎲 /dice* — _Знайди і вбий москаля_" +
         "\n*🔄 /give* — _Міні гра, кинь кістки_" +
         "\n*🌏 /globaltop* — _Топ всіх гравців_" +
-        "\n*📊 /top10* — _Топ 10 гравців_" +
-        "\n*📊 /top* — _Топ гравців_" +
-        "\n*🫡 /leave* — _Покинути гру_" +
+        "\n*📊 /top10* — _Топ 10 гравців чату_" +
+        "\n*📊 /top* — _Топ гравців чату_" +
+        "\n*🫡 /leave* — _Покинути гру (прогрес видаляється):_" +
         "\n*📡 /about* — _Про бота_" +
         "\n\n_Якщо мені видати права адміністратора на видалення повідомлень, я буду прибирати за собою_")
     
@@ -56,7 +53,7 @@ async def help(message: types.Message):
 #-----/ping
 async def ping(message: types.Message):
     start_time = datetime.now()
-    await bot.get_me()  # Предполагаем, что это операция для замера времени отклика
+    await bot.get_me()
     end_time = datetime.now()
     ping_time = (end_time - start_time).total_seconds() * 1000
     cpu_usage = psutil.cpu_percent(interval=1)
@@ -91,8 +88,8 @@ async def ping(message: types.Message):
 async def about(message: types.Message):
     about_text = (
         f"📡 Sofia `{VERSION}`\n\n"
-        f"[News Channel](t.me/onilyxe) (Soon)\n"
-        f"[Source](https://github.com/onilyxe/Sofia) (Soon)\n\n"
+        f"[News Channel](t.me/SofiaBotRol)\n"
+        f"[Source](https://github.com/onilyxe/Sofia)\n\n"
         f"Made [onilyxe](https://t.me/itsokt0cry). Idea [den](https://t.me/itsokt0cry)")
 
     await reply_and_delete(message, about_text)

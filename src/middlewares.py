@@ -8,8 +8,7 @@ from aiogram.utils.exceptions import MessageCantBeDeleted, MessageToDeleteNotFou
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.dispatcher.handler import CancelHandler
 from datetime import datetime, timedelta
-from aiogram import types
-from aiogram import Bot
+from aiogram import Bot, types
 
 
 # Імпортуємо конфігураційний файл
@@ -88,7 +87,6 @@ class RateLimit(BaseMiddleware):
                     send = await bot.send_voice(chat_id=message.chat.id, voice=open('src/spam.ogg', 'rb'))
                     await asyncio.sleep(DELETE)
                     try:
-                        await bot.delete_message(message.chat.id, message.message_id)
                         await bot.delete_message(message.chat.id, send.message_id)
                     except (MessageCantBeDeleted, MessageToDeleteNotFound):
                         pass
