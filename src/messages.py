@@ -4,6 +4,7 @@ import aiosqlite
 import aiogram
 import logging
 import psutil
+
 from src.functions import reply_and_delete, show_globaltop, show_top
 from datetime import datetime, timedelta
 from aiogram import Bot, types
@@ -38,8 +39,8 @@ async def help(message: types.Message):
         "\n\n*📈 /killru* — _Спробувати підвищити свою русофобію_" +
         "\n*😡 /my* — _Моя русофобія_" +
         "\n*🎮 /game* — _Знайди і вбий москаля_" +
-        "\n*🎲 /dice* — _Знайди і вбий москаля_" +
-        "\n*🔄 /give* — _Міні гра, кинь кістки_" +
+        "\n*🎲 /dice* — _Міні гра, кинь кістки_" +
+        "\n*🔄 /give* — _Передати русофобію_" +
         "\n*🌏 /globaltop* — _Топ всіх гравців_" +
         "\n*📊 /top10* — _Топ 10 гравців чату_" +
         "\n*📊 /top* — _Топ гравців чату_" +

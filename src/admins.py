@@ -39,26 +39,30 @@ async def chatlist(message: types.Message):
     else:
         chat_list_lines = []
         removed_chats_info = []
+        total_chats_count = 0
+        removed_chats_count = 0
 
         for (chat_id,) in chats:
+            total_chats_count += 1
             try:
                 chat_info = await bot.get_chat(chat_id)
                 chat_username = f"@{chat_info.username}" if chat_info.username else ""
                 chat_list_lines.append(f"🔹 {chat_id}, {chat_info.type}, {chat_info.title} {chat_username}")
             except (BotKicked, ChatNotFound, Unauthorized) as e:
+                removed_chats_count += 1
                 removed_chats_info.append(f"🔹 {chat_id} - вилучено ({type(e).__name__})")
                 await remove_chat(chat_id)
 
-        chat_list = "💬 Список чатів бота:\n\n" + '\n'.join(chat_list_lines)
+        chat_list = f"💬 Список чатів бота ({total_chats_count}):\n\n" + '\n'.join(chat_list_lines)
         if removed_chats_info:
-            chat_list += f"\n\n\n💢 Список вилучених чатів:\n\n" + '\n'.join(removed_chats_info)
+            chat_list += f"\n\n\n💢 Список вилучених чатів ({removed_chats_count}):\n\n" + '\n'.join(removed_chats_info)
 
     reply = await message.reply(chat_list, disable_web_page_preview=True)
-    await asyncio. sleep(DELETE)
+    await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         await bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
-    except (MessageCantBeDeleted, MessageToDeleteNotFound) :
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
 

@@ -690,5 +690,18 @@ async def leave_inline(callback_query: CallbackQuery):
             pass
 
 
+@dp.message_handler(commands=['hapai'])
+async def hapai(message: types.Message):
+    keyboard = InlineKeyboardMarkup()
+    button = InlineKeyboardButton(text="ХАПАНУТИ", callback_data="button_clicked")
+    keyboard.add(button)
+    await message.answer("🌿", reply_markup=keyboard)
+
+
+@dp.callback_query_handler(lambda c: c.data == 'button_clicked')
+async def handle_button_click(callback_query: types.CallbackQuery):
+    await callback_query.answer("Ухх дурман. Розкумарчик що треба")       
+
+
 if __name__ == '__main__':
     start_polling(dp, skip_updates=SKIPUPDATES, on_startup=startup, on_shutdown=shutdown)

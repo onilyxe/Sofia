@@ -97,12 +97,17 @@ async def check_type(message: types.Message):
 # Виведення топа
 async def show_top(message: types.Message, limit: int, title: str):
     chat_id = message.chat.id
+    total_kg = 0
+
     async with aiosqlite.connect('src/database.db') as db:
         async with db.execute(
             'SELECT user_id, value FROM user_values WHERE chat_id = ? AND value != 0 ORDER BY value DESC LIMIT ?',
             (chat_id, limit)
         ) as cursor:
             results = await cursor.fetchall()
+
+        if results:
+            total_kg = sum([value for _, value in results])
 
     if not results:
         await reply_and_delete(message, '😯 Ще ніхто не грав')
@@ -120,7 +125,7 @@ async def show_top(message: types.Message, limit: int, title: str):
         tasks = [username(chat_id, user_id) for user_id, _ in results]
         user_names = await asyncio.gather(*tasks)
 
-        message_text = f'{title}:\n'
+        message_text = f'{title}:\n🟰 Усього: {total_kg} кг\n\n'
         count = 0
         for user_name, (_, rusophobia) in zip(user_names, results):
             if user_name:
@@ -130,14 +135,20 @@ async def show_top(message: types.Message, limit: int, title: str):
         await reply_and_delete(message, message_text)
 
 
+
 # Виведення глобального топа
 async def show_globaltop(message: types.Message, limit: int, title: str):
+    total_kg = 0
+
     async with aiosqlite.connect('src/database.db') as db:
         async with db.execute(
             'SELECT user_id, MAX(value) as max_value FROM user_values WHERE value != 0 GROUP BY user_id ORDER BY max_value DESC LIMIT ?',
             (limit,)
         ) as cursor:
             results = await cursor.fetchall()
+
+        if results:
+            total_kg = sum([value for _, value in results])
 
     if not results:
         await reply_and_delete(message, '😯 Ще ніхто не грав')
@@ -155,7 +166,7 @@ async def show_globaltop(message: types.Message, limit: int, title: str):
         tasks = [get_username(user_id) for user_id, _ in results]
         user_names = await asyncio.gather(*tasks)
 
-        message_text = f'{title}:\n'
+        message_text = f'{title}:\n🟰 Усього: {total_kg} кг\n\n'
         count = 0
         for user_name, (_, rusophobia) in zip(user_names, results):
             if user_name:
