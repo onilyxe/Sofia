@@ -59,15 +59,19 @@ async def ping(message: types.Message):
     ping_time = (end_time - start_time).total_seconds() * 1000
     cpu_usage = psutil.cpu_percent(interval=1)
     ram_usage = psutil.virtual_memory().percent
+    now = datetime.now()
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_week = start_of_today - timedelta(days=now.weekday())
 
     async with aiosqlite.connect('src/database.db') as db:
         async with db.execute('SELECT count FROM queries WHERE datetime >= ? AND datetime < ? ORDER BY datetime DESC LIMIT 1', (start_time.replace(hour=0, minute=0, second=0, microsecond=0), start_time.replace(hour=23, minute=59, second=59, microsecond=999999))) as cursor:
             today_record = await cursor.fetchone()
             today_queries = today_record[0] if today_record else 0
 
-        async with db.execute('SELECT SUM(count) FROM queries WHERE datetime >= ?', (start_time - timedelta(days=7),)) as cursor:
-            last_week_record = await cursor.fetchone()
-            last_week_queries = last_week_record[0] if last_week_record else 0
+        period_start = start_of_today if now.weekday() == 0 else start_of_week
+        async with db.execute('SELECT SUM(count) FROM queries WHERE datetime >= ?', (period_start,)) as cursor:
+            week_record = await cursor.fetchone()
+            week_queries = week_record[0] if week_record else 0
 
         async with db.execute('SELECT SUM(count) FROM queries') as cursor:
             all_time_record = await cursor.fetchone()
@@ -79,7 +83,7 @@ async def ping(message: types.Message):
         f"💾 RAM: `{ram_usage}%`\n\n"
         f"📊 Кількість запитів:\n"
         f"_За сьогодні:_ `{today_queries}`\n"
-        f"_За тиждень:_ `{last_week_queries}`\n"
+        f"_За тиждень:_ `{week_queries}`\n"
         f"_За весь час:_ `{all_time_queries}`")
 
     await reply_and_delete(message, ping_text)
