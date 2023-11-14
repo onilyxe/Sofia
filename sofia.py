@@ -110,15 +110,16 @@ async def killru(message: types.Message):
             return
 
         else:
-            cursor = await db.execute('SELECT * FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-            if await cursor.fetchone():
-                await db.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (now.strftime('%Y-%m-%d %H:%M:%S'), user_id, chat_id))
-            else:
-                await db.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, now.strftime('%Y-%m-%d %H:%M:%S')))
-            await db.commit()
+            if TEST == 'False':
+                cursor = await db.execute('SELECT * FROM cooldowns WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+                if await cursor.fetchone():
+                    await db.execute('UPDATE cooldowns SET killru = ? WHERE user_id = ? AND chat_id = ?', (now.strftime('%Y-%m-%d %H:%M:%S'), user_id, chat_id))
+                else:
+                    await db.execute('INSERT INTO cooldowns (user_id, chat_id, killru) VALUES (?, ?, ?)', (user_id, chat_id, now.strftime('%Y-%m-%d %H:%M:%S')))
+                await db.commit()
 
         if TEST == 'True':
-            rusophobia = random.choice([1000, 1488])
+            rusophobia = 1000
         else:
             rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
@@ -137,7 +138,17 @@ async def killru(message: types.Message):
         else:
             message_text = f"📉 {mention}, твоя русофобія зменшилась на `{abs(rusophobia)}` кг"
 
-        message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг"
+        message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг. "
+
+        now = datetime.now()
+        midnight = datetime.combine(now.date() + timedelta(days=1), datetime.min.time())
+        remaining_time = midnight - now
+        time_until_midnight = f"{int(remaining_time.total_seconds() // 3600):02d}:" \
+                              f"{int((remaining_time.total_seconds() % 3600) // 60):02d}:" \
+                              f"{int(remaining_time.total_seconds() % 60):02d}"
+                              
+        message_text += f"Продовжуй грати через `{time_until_midnight}`"
+
         await send_and_delete(message, chat_id=message.chat.id, reply_text=message_text)
 
 
@@ -319,9 +330,10 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (balance_after_bet, user_id, chat_id))
                 message = f"😔 {mention}, ти програв `{bet}` кг\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            await db.execute("UPDATE cooldowns SET game = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
-            await db.commit()
+            if TEST == 'False':
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                await db.execute("UPDATE cooldowns SET game = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
+                await db.commit()
 
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
@@ -455,9 +467,10 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
                     await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            await db.execute("UPDATE cooldowns SET dice = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
-            await db.commit()
+            if TEST == 'False':
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                await db.execute("UPDATE cooldowns SET dice = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
+                await db.commit()
 
             dice_message = await bot.send_dice(chat_id=chat_id)
             result_dice = dice_message.dice.value
@@ -481,7 +494,7 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
                 win_message = f"😔 {mention}, ти програв. Випало `{result_dice}`, {'непарне' if result_dice % 2 != 0 else 'парне'} \n🤜 Втрата: `{bet}` кг\n\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
-            await asyncio.sleep(4)
+            await asyncio.sleep(3)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -598,13 +611,13 @@ async def give_inline(callback_query: types.CallbackQuery):
             return
 
         if answer == 'yes':
-            await db.execute(
-                'UPDATE user_values SET value = value - ? WHERE user_id = ? AND chat_id = ?', (value, giver_id, callback_query.message.chat.id))
+            await db.execute('UPDATE user_values SET value = value - ? WHERE user_id = ? AND chat_id = ?', (value, giver_id, callback_query.message.chat.id))
             await db.execute(
                 'INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?) '
                 'ON CONFLICT(user_id, chat_id) DO UPDATE SET value = value + ?', (receiver_id, callback_query.message.chat.id, value, value))
-            await db.execute(
-                'UPDATE cooldowns SET give = ? WHERE user_id = ? AND chat_id = ?', (now.strftime("%Y-%m-%d %H:%M:%S"), giver_id, callback_query.message.chat.id))
+            if TEST == 'False':
+                await db.execute(
+                    'UPDATE cooldowns SET give = ? WHERE user_id = ? AND chat_id = ?', (now.strftime("%Y-%m-%d %H:%M:%S"), giver_id, callback_query.message.chat.id))
             await db.commit()
 
             async with db.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, callback_query.message.chat.id)) as cursor:
