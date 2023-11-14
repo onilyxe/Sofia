@@ -121,7 +121,7 @@ async def killru(message: types.Message):
         if TEST == 'True':
             rusophobia = 1000
         else:
-            rusophobia = random.choice([-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+            rusophobia = random.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 25])
 
         if newuser:
             rusophobia = abs(rusophobia)
