@@ -16,6 +16,7 @@ try:
     TOKEN = config['TOKEN']['BOT']
     ADMIN = int(config['ID']['ADMIN'])
     TEST = (config['SETTINGS']['TEST'])
+    STATUS = (config['SETTINGS']['STATUS'])
     DELETE = int(config['SETTINGS']['DELETE'])
 except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу в functions.py: {e}")
@@ -40,7 +41,7 @@ async def setup_database():
 # Функція під час старту
 async def startup(dp):
     await setup_database()
-    if TEST != 'True':
+    if STATUS == 'True':
         startup_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
         try:
             await dp.bot.send_message(ADMIN, f"🚀 Старт \n⌚️ `{startup_time}`", parse_mode="Markdown")
@@ -50,7 +51,7 @@ async def startup(dp):
 
 # Функція під час завершення
 async def shutdown(dp):
-    if TEST != 'True':
+    if STATUS == 'True':
         shutdown_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
         try:
             await dp.bot.send_message(ADMIN, f"⛔️ Стоп \n⌚️ `{shutdown_time}`", parse_mode="Markdown")
