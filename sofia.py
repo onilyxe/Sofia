@@ -8,8 +8,9 @@ import logging
 import asyncio
 import random
 import math
-from aiogram.utils.exceptions import MessageCantBeDeleted, MessageToDeleteNotFound
+
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.exceptions import MessageCantBeDeleted, MessageToDeleteNotFound
 from aiogram.utils.executor import start_polling
 from datetime import datetime, timedelta, time
 from aiogram import Bot, Dispatcher, types
@@ -200,11 +201,11 @@ async def start_game(message: types.Message):
             return
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
 
-        keyboard = InlineKeyboardMarkup(row_width=3)
-        bet_buttons = [InlineKeyboardButton(f"🏷️ {bet} кг", callback_data=f"bet_{bet}") for bet in [1, 3, 5, 10, 20, 30, 40, 50, 60]]
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        bet_buttons = [InlineKeyboardButton(f"{bet} кг", callback_data=f"bet_{bet}") for bet in [1, 5, 10, 20, 30, 40, 50, 100, 150, 200]]
         bet_buttons.append(InlineKeyboardButton("❌ Вийти", callback_data="cancel"))
         keyboard.add(*bet_buttons)
-        game_message = await bot.send_message(chat_id, f"🧌 {mention}, знайди і вбий москаля\n\n🏷️ У тебе: `{balance}` кг\n🎰 Вибери ставку\n🔀 Приз: ставка x2", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+        game_message = await bot.send_message(chat_id, f"🧌 {mention}, знайди і вбий москаля\nВибери ставку\n\n🏷️ У тебе: `{balance}` кг", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
         await cache.set(f"game_player_{game_message.message_id}", message.from_user.id)
         await asyncio.sleep(DELETE)
         try:
@@ -281,7 +282,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             await db.commit()
 
             await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твоя ставка в `{bet} кг` повернута")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('cell_'):
@@ -313,10 +314,10 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
                 bet_won = bet * 2 
                 new_balance = balance_after_bet + bet_won + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                message = f"🥇 {mention}, вітаю! Ти знайшов і вбив москаля, і з нього випало `{bet_won}` кг\n🏷️ Тепер у тебе: `{new_balance}` кг"
+                message = f"🏆 {mention}, ти виграв! Ти знайшов і вбив москаля, з нього випало `{bet_won}` кг\n🏷️ Тепер у тебе: `{new_balance}` кг"
             else:
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (balance_after_bet, user_id, chat_id))
-                message = f"😔 {mention}, на жаль, ти програв `{bet}` кг\n🏷️ У тебе залишилося: `{balance_after_bet}` кг"
+                message = f"😔 {mention}, ти програв `{bet}` кг\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             await db.execute("UPDATE cooldowns SET game = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
@@ -358,11 +359,11 @@ async def start_dice(message: types.Message):
 
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
 
-        keyboard = InlineKeyboardMarkup(row_width=3)
-        bet_buttons = [InlineKeyboardButton(f"🖱️ {bet} кг", callback_data=f"bett_{bet}") for bet in [1, 3, 5, 10, 20, 30, 40, 50, 60]]
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        bet_buttons = [InlineKeyboardButton(f"{bet} кг", callback_data=f"bett_{bet}") for bet in [1, 5, 10, 20, 30, 40, 50, 100, 150, 200]]
         bet_buttons.append(InlineKeyboardButton("❌ Вийти", callback_data="cancell"))
         keyboard.add(*bet_buttons)
-        dice_message = await bot.send_message(chat_id, f"🎲 {mention}, зіграй у кості\n\n🏷️ У тебе: `{balance}` кг\n🎰 Вибери ставку\n🔀 Приз: ставка x0.5", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+        dice_message = await bot.send_message(chat_id, f"🎲 {mention}, зіграй у кості\nВибери ставку\n\n🏷️ У тебе: `{balance}` кг\n", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
         await cache.set(f"dice_player_{dice_message.message_id}", message.from_user.id)
         await asyncio.sleep(DELETE)
         try:
@@ -412,11 +413,11 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             await db.commit()
 
             await cache.set(f"bett_{user_id}_{chat_id}", str(bet))
-            potential_win = math.ceil(bet * 0.5)
+            potential_win = math.ceil(bet * 1.5)
 
             keyboard = InlineKeyboardMarkup()
-            button_even = InlineKeyboardButton("➗Парне", callback_data=f"even_{bet}")
-            button_odd = InlineKeyboardButton("✖️Непарне", callback_data=f"odd_{bet}")
+            button_even = InlineKeyboardButton("➗ Парне", callback_data=f"even_{bet}")
+            button_odd = InlineKeyboardButton("✖️ Непарне", callback_data=f"odd_{bet}")
             button_cancel = InlineKeyboardButton("❌ Відміна", callback_data="cancelll_cell")
             keyboard.row(button_even, button_odd)
             keyboard.add(button_cancel)
@@ -434,7 +435,7 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             await db.commit()
 
             await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твоя ставка в `{bet} кг` повернута")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('even_') or callback_query.data.startswith('odd_'):
@@ -472,12 +473,12 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             bet = int(bet)
             
             if (result_dice % 2 == 0 and bet_type == 'even') or (result_dice % 2 != 0 and bet_type == 'odd'):
-                bet_won = math.ceil(bet * 0.5)
+                bet_won = math.ceil(bet * 1.5)
                 new_balance = balance_after_bet + bet_won + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                win_message = f"🥇 {mention}, ти виграв! \n🎲 Випало `{result_dice}`, {'парне' if result_dice % 2 == 0 else 'непарне'} \n💰 Твій виграш: `{bet_won}` кг\n\n🏷️ Тепер у тебе: `{new_balance}` кг"
+                win_message = f"🏆 {mention}, ти виграв! Випало `{result_dice}`, {'парне' if result_dice % 2 == 0 else 'непарне'} \n💰 Твій виграш: `{bet_won}` кг\n\n🏷️ Тепер у тебе: `{new_balance}` кг"
             else:
-                win_message = f"😔 {mention}, ти програв \n🎲 Випало `{result_dice}`, {'непарне' if result_dice % 2 != 0 else 'парне'} \n🤜 Втрата: `{bet}` кг\n\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
+                win_message = f"😔 {mention}, ти програв. Випало `{result_dice}`, {'непарне' if result_dice % 2 != 0 else 'парне'} \n🤜 Втрата: `{bet}` кг\n\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
             await asyncio.sleep(4)
@@ -687,20 +688,67 @@ async def leave_inline(callback_query: CallbackQuery):
         try:
             await bot.delete_message(chat_id=chat_id, message_id=callback_query.message.message_id)
         except (MessageCantBeDeleted, MessageToDeleteNotFound):
-            pass
+            pass  
 
 
-@dp.message_handler(commands=['hapai'])
-async def hapai(message: types.Message):
+
+@dp.message_handler(commands=['games'])
+async def games(message: types.Message):
+    keyboard = InlineKeyboardMarkup(row_width=4)
+    games_buttons = [
+        InlineKeyboardButton(text="🧌", callback_data="game_club"),
+        InlineKeyboardButton(text="🎲", callback_data="game_dice"),
+        InlineKeyboardButton(text="🎯", callback_data="game_darts"),
+        InlineKeyboardButton(text="🏀", callback_data="game_basketball"),
+        InlineKeyboardButton(text="⚽️", callback_data="game_football"),
+        InlineKeyboardButton(text="🎳", callback_data="game_bowling"),
+        InlineKeyboardButton(text="🎰", callback_data="game_casino")
+    ]
+    keyboard.add(*games_buttons)
+    text = await message.reply("🎮 Обери гру, щоб дізнатися\nпро неї докладніше", reply_markup=keyboard)
+    await asyncio.sleep(DELETE)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=text.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
+        pass
+    return
+
+
+@dp.callback_query_handler(lambda c: c.data.startswith('game_'))
+async def game_selected(callback_query: types.CallbackQuery):
+    game_emojis = {
+        "game_club": "🧌 Знайди і вбий москаля. Суть гри вгадати де знаходиться москаль\n⏱️ Можна зіграти раз на 3 години\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n🚀 Команда гри: /game",
+        "game_dice": "🎲 Гра у кості. Суть гри вгадати яке випаде число, парне чи непарнеn⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n🚀 Команда гри: /dice",
+        "game_darts": "🎯 Скоро..",
+        "game_basketball": "🏀 Скоро..",
+        "game_football": "⚽️ Скоро..",
+        "game_bowling": "🎳 Скоро..",
+        "game_casino": "🎰 Скоро.."
+   }
+
+    selected_game = game_emojis[callback_query.data]
     keyboard = InlineKeyboardMarkup()
-    button = InlineKeyboardButton(text="ХАПАНУТИ", callback_data="button_clicked")
-    keyboard.add(button)
-    await message.answer("🌿", reply_markup=keyboard)
+    back_button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_to_games")
+    keyboard.add(back_button)
+    await bot.answer_callback_query(callback_query.id, "✅")
+    await callback_query.message.edit_text(f"{selected_game}", reply_markup=keyboard, parse_mode="Markdown")
 
-
-@dp.callback_query_handler(lambda c: c.data == 'button_clicked')
-async def handle_button_click(callback_query: types.CallbackQuery):
-    await callback_query.answer("Ухх дурман. Розкумарчик що треба")       
+@dp.callback_query_handler(lambda c: c.data == 'back_to_games')
+async def back_to_games(callback_query: types.CallbackQuery):
+    keyboard = InlineKeyboardMarkup(row_width=4)
+    games_buttons = [
+        InlineKeyboardButton(text="🧌", callback_data="game_club"),
+        InlineKeyboardButton(text="🎲", callback_data="game_dice"),
+        InlineKeyboardButton(text="🎯", callback_data="game_darts"),
+        InlineKeyboardButton(text="🏀", callback_data="game_basketball"),
+        InlineKeyboardButton(text="⚽️", callback_data="game_football"),
+        InlineKeyboardButton(text="🎳", callback_data="game_bowling"),
+        InlineKeyboardButton(text="🎰", callback_data="game_casino")
+    ]
+    keyboard.add(*games_buttons)
+    await bot.answer_callback_query(callback_query.id, "✅")
+    await callback_query.message.edit_text("🎮 Обери гру, щоб дізнатися\nпро неї докладніше", reply_markup=keyboard)
 
 
 if __name__ == '__main__':
