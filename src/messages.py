@@ -32,25 +32,6 @@ async def start(message: types.Message):
     await reply_and_delete(message, "🫡 Привіт. Я бот для гри в русофобію. Додавай мене в чат і розважайся. Щоб дізнатися як мною користуватися, вивчай /help")
 
 
-#-----/help
-async def help(message: types.Message):
-    help_text = (
-        "🎮 *Розвивай свою русофобію. Зростай її щодня, і змагайся з друзями*" +
-        "\n\n*📈 /killru* — _Спробувати підвищити свою русофобію_" +
-        "\n*😡 /my* — _Моя русофобія_" +
-        "\n*🎮 /game* — _Знайди і вбий москаля_" +
-        "\n*🎲 /dice* — _Міні гра, кинь кістки_" +
-        "\n*🔄 /give* — _Передати русофобію_" +
-        "\n*🌏 /globaltop* — _Топ всіх гравців_" +
-        "\n*📊 /top10* — _Топ 10 гравців чату_" +
-        "\n*📊 /top* — _Топ гравців чату_" +
-        "\n*🫡 /leave* — _Покинути гру (прогрес видаляється):_" +
-        "\n*📡 /about* — _Про бота_" +
-        "\n\n_Якщо мені видати права адміністратора на видалення повідомлень, я буду прибирати за собою_")
-    
-    await reply_and_delete(message, help_text)
-
-
 #-----/ping
 async def ping(message: types.Message):
     start_time = datetime.now()
@@ -118,7 +99,6 @@ async def top(message: types.Message):
 # Ініціалізація обробника
 def messages_handlers(dp, bot):
     dp.register_message_handler(start, commands=['start'])
-    dp.register_message_handler(help, commands=['help'])
     dp.register_message_handler(ping, commands=['ping'])
     dp.register_message_handler(about, commands=['about'])
     dp.register_message_handler(globaltop, commands=['globaltop'])

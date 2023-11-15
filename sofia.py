@@ -119,7 +119,7 @@ async def killru(message: types.Message):
                 await db.commit()
 
         if TEST == 'True':
-            rusophobia = 1000
+            rusophobia = 1488
         else:
             rusophobia = random.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 25])
 
@@ -704,10 +704,11 @@ async def leave_inline(callback_query: CallbackQuery):
             pass  
 
 
-
-@dp.message_handler(commands=['games'])
-async def games(message: types.Message):
+@dp.message_handler(commands=['help'])
+async def help(message: types.Message):
     keyboard = InlineKeyboardMarkup(row_width=4)
+    main_game_button = InlineKeyboardButton(text="Основна гра - /killru", callback_data="main_game")
+    keyboard.add(main_game_button)
     games_buttons = [
         InlineKeyboardButton(text="🧌", callback_data="game_club"),
         InlineKeyboardButton(text="🎲", callback_data="game_dice"),
@@ -718,7 +719,7 @@ async def games(message: types.Message):
         InlineKeyboardButton(text="🎰", callback_data="game_casino")
     ]
     keyboard.add(*games_buttons)
-    text = await message.reply("🎮 Обери гру, щоб дізнатися\nпро неї докладніше", reply_markup=keyboard)
+    text = await message.reply("⚙️ Тут ти зможеш дізнатися\nпро мене все", reply_markup=keyboard)
     await asyncio.sleep(DELETE)
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=text.message_id)
@@ -728,11 +729,12 @@ async def games(message: types.Message):
     return
 
 
-@dp.callback_query_handler(lambda c: c.data.startswith('game_'))
+@dp.callback_query_handler(lambda c: c.data == 'main_game' or c.data.startswith('game_'))
 async def game_selected(callback_query: types.CallbackQuery):
     game_emojis = {
-        "game_club": "🧌 Знайди і вбий москаля. Суть гри вгадати де знаходиться москаль\n⏱️ Можна зіграти раз на 3 години\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n🚀 Команда гри: /game",
-        "game_dice": "🎲 Гра у кості. Суть гри вгадати яке випаде число, парне чи непарнеn⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n🚀 Команда гри: /dice",
+        "main_game": "Гра в русофобію\nУ гру можна зіграти кожен день один раз, виконавши /killru\nПри цьому кількість русофобії випадковим чином збільшиться(до +25) або зменшиться(до -5)\nРейтин можна подивитися виконавши /top. Є маленький варіант /top10, і глобальний топ, показує топ серед усіх учасників /globaltop\nВиконавши /my можна дізнатися свою кількість русофобії\nПередати свою русофобію іншому користувачу, можна відповівши йому командою /give, вказавши кількість русофобії\nІнформацію про бота можна подивитися, виконавши /about\nСлужбова інформація: /ping\nВаріанти міні-ігор можна переглянути за командою /help, вибравши знизу емодзі, що вказує на гру\nВийти з гри (прогрес видаляється): /leave\n\n\nЯкщо мені видати права адміністратора (видалення повідомлень), то я через годину буду видаляти повідомлення від мене і які мене викликали. Залишаючи тільки про зміни в русофобії\n\n\nKillru. Смерть всьому російському. 🫡",
+        "game_club": "🧌 Знайди і вбий москаля. Суть гри вгадати де знаходиться москаль на сітці 3х3\n⏱️ Можна зіграти раз на 3 години\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100, 150, 200\n🚀 Команда гри: /game",
+        "game_dice": "🎲 Гра у кості. Суть гри вгадати яке випаде число, парне чи непарнеn⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100, 150, 200\n🚀 Команда гри: /dice",
         "game_darts": "🎯 Скоро..",
         "game_basketball": "🏀 Скоро..",
         "game_football": "⚽️ Скоро..",
@@ -740,7 +742,7 @@ async def game_selected(callback_query: types.CallbackQuery):
         "game_casino": "🎰 Скоро.."
    }
 
-    selected_game = game_emojis[callback_query.data]
+    selected_game = game_emojis[callback_query.data]    
     keyboard = InlineKeyboardMarkup()
     back_button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_to_games")
     keyboard.add(back_button)
@@ -750,6 +752,8 @@ async def game_selected(callback_query: types.CallbackQuery):
 @dp.callback_query_handler(lambda c: c.data == 'back_to_games')
 async def back_to_games(callback_query: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(row_width=4)
+    main_game_button = InlineKeyboardButton(text="Основна гра - /killru", callback_data="main_game")
+    keyboard.add(main_game_button)
     games_buttons = [
         InlineKeyboardButton(text="🧌", callback_data="game_club"),
         InlineKeyboardButton(text="🎲", callback_data="game_dice"),
@@ -761,7 +765,7 @@ async def back_to_games(callback_query: types.CallbackQuery):
     ]
     keyboard.add(*games_buttons)
     await bot.answer_callback_query(callback_query.id, "✅")
-    await callback_query.message.edit_text("🎮 Обери гру, щоб дізнатися\nпро неї докладніше", reply_markup=keyboard)
+    await callback_query.message.edit_text("⚙️ Тут ти зможеш дізнатися\nпро мене все", reply_markup=keyboard)
 
 
 if __name__ == '__main__':
