@@ -213,7 +213,7 @@ async def start_game(message: types.Message):
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
 
         keyboard = InlineKeyboardMarkup(row_width=2)
-        bet_buttons = [InlineKeyboardButton(f"{bet} кг", callback_data=f"bet_{bet}") for bet in [1, 5, 10, 20, 30, 40, 50, 100, 150, 200]]
+        bet_buttons = [InlineKeyboardButton(f"{bet} кг", callback_data=f"bet_{bet}") for bet in [1, 5, 10, 20, 30, 40, 50, 100]]
         bet_buttons.append(InlineKeyboardButton("❌ Вийти", callback_data="cancel"))
         keyboard.add(*bet_buttons)
         game_message = await bot.send_message(chat_id, f"🧌 {mention}, знайди і вбий москаля\nВибери ставку\n\n🏷️ У тебе: `{balance}` кг", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
@@ -322,19 +322,22 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             win = random.random() < RANDOMGAMES
 
             if win:
-                bet_won = bet * 2 
+                bet_won = math.ceil(bet * 1.5)
                 new_balance = balance_after_bet + bet_won + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                message = f"🏆 {mention}, ти виграв! Ти знайшов і вбив москаля, з нього випало `{bet_won}` кг\n🏷️ Тепер у тебе: `{new_balance}` кг"
+                message = f"🏆 {mention}, ти виграв(ла)! Ти знайшов і вбив москаля, з нього випало `{bet_won}` кг 🧌\n🏷️ Тепер у тебе: `{new_balance}` кг"
             else:
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (balance_after_bet, user_id, chat_id))
-                message = f"😔 {mention}, ти програв `{bet}` кг\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
+                message = f"😔 {mention}, ти програв(ла) `{bet}` кг 🧌\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             if TEST == 'False':
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 await db.execute("UPDATE cooldowns SET game = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
+            wait = "🧌 Переконуємося у смерті кацапа.."
+            await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
+            await asyncio.sleep(3)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -372,7 +375,7 @@ async def start_dice(message: types.Message):
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
 
         keyboard = InlineKeyboardMarkup(row_width=2)
-        bet_buttons = [InlineKeyboardButton(f"{bet} кг", callback_data=f"bett_{bet}") for bet in [1, 5, 10, 20, 30, 40, 50, 100, 150, 200]]
+        bet_buttons = [InlineKeyboardButton(f"{bet} кг", callback_data=f"bett_{bet}") for bet in [1, 5, 10, 20, 30, 40, 50, 100]]
         bet_buttons.append(InlineKeyboardButton("❌ Вийти", callback_data="cancell"))
         keyboard.add(*bet_buttons)
         dice_message = await bot.send_message(chat_id, f"🎲 {mention}, зіграй у кості\nВибери ставку\n\n🏷️ У тебе: `{balance}` кг\n", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
@@ -430,9 +433,7 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             keyboard = InlineKeyboardMarkup()
             button_even = InlineKeyboardButton("➗ Парне", callback_data=f"even_{bet}")
             button_odd = InlineKeyboardButton("✖️ Непарне", callback_data=f"odd_{bet}")
-            button_cancel = InlineKeyboardButton("❌ Відміна", callback_data="cancelll_cell")
             keyboard.row(button_even, button_odd)
-            keyboard.add(button_cancel)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(
@@ -472,6 +473,9 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET dice = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
+            wait = "🎲 Аналізую твої минулі ігри.."
+            await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
+
             dice_message = await bot.send_dice(chat_id=chat_id)
             result_dice = dice_message.dice.value
 
@@ -489,9 +493,9 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
                 bet_won = math.ceil(bet * 1.5)
                 new_balance = balance_after_bet + bet_won + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                win_message = f"🏆 {mention}, ти виграв! Випало `{result_dice}`, {'парне' if result_dice % 2 == 0 else 'непарне'} \n💰 Твій виграш: `{bet_won}` кг\n\n🏷️ Тепер у тебе: `{new_balance}` кг"
+                win_message = f"🏆 {mention}, ти виграв(ла)! Випало `{result_dice}`, {'парне' if result_dice % 2 == 0 else 'непарне'} \n🎲 Твій виграш: `{bet_won}` кг \n\n🏷️ Тепер у тебе: `{new_balance}` кг"
             else:
-                win_message = f"😔 {mention}, ти програв. Випало `{result_dice}`, {'непарне' if result_dice % 2 != 0 else 'парне'} \n🤜 Втрата: `{bet}` кг\n\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
+                win_message = f"😔 {mention}, ти програв(ла). Випало `{result_dice}`, {'непарне' if result_dice % 2 != 0 else 'парне'} \n🎲 Втрата: `{bet}` кг \n\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
             await asyncio.sleep(3)
@@ -663,7 +667,7 @@ async def leave(message: types.Message):
         await reply_and_delete(message, f"😯 {mention}, ти й так не граєш")
 
     else:
-        msg = await bot.send_message(chat_id, f"😡 {mention}, ти впевнений, що хочеш ливнути з гри? Твої дані буде видалено з бази даних", reply_markup=inline, parse_mode="Markdown", disable_web_page_preview=True)
+        msg = await bot.send_message(chat_id, f"😡 {mention}, ти впевнений, що хочеш ливнути з гри? Твої дані буде видалено з бази даних. Цю дію не можна буде скасувати", reply_markup=inline, parse_mode="Markdown", disable_web_page_preview=True)
         await cache.set(f"leavers_{msg.message_id}", user_id)
         await asyncio.sleep(DELETE)
         try:
@@ -733,8 +737,8 @@ async def help(message: types.Message):
 async def game_selected(callback_query: types.CallbackQuery):
     game_emojis = {
         "main_game": "Гра в русофобію\nУ гру можна зіграти кожен день один раз, виконавши /killru\nПри цьому кількість русофобії випадковим чином збільшиться(до +25) або зменшиться(до -5)\nРейтин можна подивитися виконавши /top. Є маленький варіант /top10, і глобальний топ, показує топ серед усіх учасників /globaltop\nВиконавши /my можна дізнатися свою кількість русофобії\nПередати свою русофобію іншому користувачу, можна відповівши йому командою /give, вказавши кількість русофобії\nІнформацію про бота можна подивитися, виконавши /about\nСлужбова інформація: /ping\nВаріанти міні-ігор можна переглянути за командою /help, вибравши знизу емодзі, що вказує на гру\nВийти з гри (прогрес видаляється): /leave\n\n\nЯкщо мені видати права адміністратора (видалення повідомлень), то я через годину буду видаляти повідомлення від мене і які мене викликали. Залишаючи тільки про зміни в русофобії\n\n\nKillru. Смерть всьому російському. 🫡",
-        "game_club": "🧌 Знайди і вбий москаля. Суть гри вгадати де знаходиться москаль на сітці 3х3\n⏱️ Можна зіграти раз на 3 години\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100, 150, 200\n🚀 Команда гри: /game",
-        "game_dice": "🎲 Гра у кості. Суть гри вгадати яке випаде число, парне чи непарнеn⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100, 150, 200\n🚀 Команда гри: /dice",
+        "game_club": "🧌 Знайди і вбий москаля. Суть гри вгадати де знаходиться москаль на сітці 3х3\n⏱️ Можна зіграти раз на 3 години\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100, 150, 200\n🚀 Команда гри: /game",
+        "game_dice": "🎲 Гра у кості. Суть гри вгадати яке випаде число, парне чи непарне\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100, 150, 200\n🚀 Команда гри: /dice",
         "game_darts": "🎯 Скоро..",
         "game_basketball": "🏀 Скоро..",
         "game_football": "⚽️ Скоро..",

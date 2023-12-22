@@ -15,6 +15,7 @@ try:
     config.read('config.ini')
     TOKEN = config['TOKEN']['BOT']
     ADMIN = int(config['ID']['ADMIN'])
+    CHANNEL= int(config['ID']['CHANNEL'])
     TEST = (config['SETTINGS']['TEST'])
     STATUS = (config['SETTINGS']['STATUS'])
     DELETE = int(config['SETTINGS']['DELETE'])
@@ -44,7 +45,7 @@ async def startup(dp):
     if STATUS == 'True':
         startup_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
         try:
-            await dp.bot.send_message(ADMIN, f"🚀 Старт \n⌚️ `{startup_time}`", parse_mode="Markdown")
+            await dp.bot.send_message(CHANNEL, f"🚀 Старт \n⌚️ `{startup_time}`", parse_mode="Markdown")
         except Exception as e:
             print(f"Старт error: {e}")
 
@@ -54,7 +55,7 @@ async def shutdown(dp):
     if STATUS == 'True':
         shutdown_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
         try:
-            await dp.bot.send_message(ADMIN, f"⛔️ Стоп \n⌚️ `{shutdown_time}`", parse_mode="Markdown")
+            await dp.bot.send_message(CHANNEL, f"⛔️ Стоп \n⌚️ `{shutdown_time}`", parse_mode="Markdown")
         except Exception as e:
             print(f"Стоп error: {e}")
 

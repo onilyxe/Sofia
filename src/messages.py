@@ -33,6 +33,19 @@ async def start(message: types.Message):
 
 
 #-----/ping
+bot_start_time = datetime.now()
+
+
+def format_uptime(uptime):
+    days, remainder = divmod(uptime.total_seconds(), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if days > 0:
+        return f"{int(days)} д. {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+    else:
+        return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+
+
 async def ping(message: types.Message):
     start_time = datetime.now()
     await bot.get_me()
@@ -41,6 +54,8 @@ async def ping(message: types.Message):
     cpu_usage = psutil.cpu_percent(interval=1)
     ram_usage = psutil.virtual_memory().percent
     now = datetime.now()
+    uptime = now - bot_start_time
+    formatted_uptime = format_uptime(uptime)
     start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     start_of_week = start_of_today - timedelta(days=now.weekday())
 
@@ -61,7 +76,8 @@ async def ping(message: types.Message):
     ping_text = (
         f"📡 Ping: `{ping_time:.2f}` ms\n\n"
         f"🔥 CPU: `{cpu_usage}%`\n"
-        f"💾 RAM: `{ram_usage}%`\n\n"
+        f"💾 RAM: `{ram_usage}%`\n"
+        f"⏱️ Uptime: `{formatted_uptime}`\n\n"
         f"📊 Кількість запитів:\n"
         f"_За сьогодні:_ `{today_queries}`\n"
         f"_За тиждень:_ `{week_queries}`\n"
@@ -76,7 +92,7 @@ async def about(message: types.Message):
         f"📡 Sofia `{VERSION}`\n\n"
         f"[News Channel](t.me/SofiaBotRol)\n"
         f"[Source](https://github.com/onilyxe/Sofia)\n\n"
-        f"Made [onilyxe](https://t.me/itsokt0cry). Idea [den](https://t.me/itsokt0cry)")
+        f"Made [onilyxe](https://onilyxe). Idea [den](https://t.me/itsokt0cry)")
 
     await reply_and_delete(message, about_text)
 
@@ -88,12 +104,17 @@ async def globaltop(message: types.Message):
 
 # Виведення топ 10
 async def top10(message: types.Message):
-    await show_top(message, limit=10, title='📊 Топ 10 русофобій')
+    await show_top(message, limit=10, title='📊 Топ 10 русофобій чату')
 
 
 # Виведення топа
 async def top(message: types.Message):
-    await show_top(message, limit=101, title='📊 Топ русофобій')
+    await show_top(message, limit=101, title='📊 Топ русофобій чату')
+
+
+# Магазин
+async def shop(message: types.Message):
+    await reply_and_delete(message, "🫡 Привіт. Зроби добру справу, задонать адміну на плитоноску, і отримав кг! Детальніше: @OnilyxeBot")
 
 
 # Ініціалізація обробника
@@ -104,3 +125,4 @@ def messages_handlers(dp, bot):
     dp.register_message_handler(globaltop, commands=['globaltop'])
     dp.register_message_handler(top10, commands=['top10'])
     dp.register_message_handler(top, commands=['top'])
+    dp.register_message_handler(shop, commands=['shop'])

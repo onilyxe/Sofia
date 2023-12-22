@@ -17,6 +17,7 @@ try:
     config.read('config.ini')
     TOKEN = config['TOKEN']['BOT']
     DELETE = int(config['SETTINGS']['DELETE'])
+    ADMIN = int(config['ID']['ADMIN'])
     BAN = int(config['SPAM']['BAN'])
     SPEED = int(config['SPAM']['SPEED'])
     MESSAGES = int(config['SPAM']['MESSAGES'])
@@ -72,6 +73,10 @@ class Database(BaseMiddleware):
 class RateLimit(BaseMiddleware):
     async def on_process_message(self, message: types.Message, data: dict):
         user_id = message.from_user.id
+
+        if user_id == ADMIN:
+            return
+            
         current_time = datetime.now()
 
         if user_id in banlist:
