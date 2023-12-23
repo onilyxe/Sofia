@@ -102,4 +102,3 @@ class RateLimit(BaseMiddleware):
                 banlist[user_id] = (current_time, 1, mute_time)
         else:
             banlist[user_id] = (current_time, 1, None)
-            

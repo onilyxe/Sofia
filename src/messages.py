@@ -1,11 +1,14 @@
 # Імпорти
 import configparser
 import aiosqlite
+import aiocache
 import aiogram
 import logging
+import asyncio
 import psutil
 
-from src.functions import reply_and_delete, show_globaltop, show_top
+from src.functions import reply_and_delete, show_globaltop, show_top, check_type, edit_and_delete
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from datetime import datetime, timedelta
 from aiogram import Bot, types
 
@@ -16,23 +19,25 @@ try:
     config.read('config.ini')
     TOKEN = config['TOKEN']['BOT']
     ADMIN = int(config['ID']['ADMIN'])
-    DELETE = int(config['SETTINGS']['DELETE'])
+    TEST = (config['SETTINGS']['TEST'])
     VERSION = (config['SETTINGS']['VERSION'])
+    DELETE = int(config['SETTINGS']['DELETE'])
 except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу в messages.py: {e}")
     exit()
 
 
-# Ініціалізація бота
+# Ініціалізація бота та кеш-пам'яті
 bot = Bot(token=TOKEN)
+cache = aiocache.Cache()
 
 
-#/-----start
+# /start
 async def start(message: types.Message):
     await reply_and_delete(message, "🫡 Привіт. Я бот для гри в русофобію. Додавай мене в чат і розважайся. Щоб дізнатися як мною користуватися, вивчай /help")
 
 
-#-----/ping
+# /ping
 bot_start_time = datetime.now()
 
 
@@ -86,7 +91,7 @@ async def ping(message: types.Message):
     await reply_and_delete(message, ping_text)
 
 
-#-----/about
+# /about
 async def about(message: types.Message):
     about_text = (
         f"📡 Sofia `{VERSION}`\n\n"
@@ -97,24 +102,311 @@ async def about(message: types.Message):
     await reply_and_delete(message, about_text)
 
 
-# Виведення глобального топа
+# /globaltop
 async def globaltop(message: types.Message):
     await show_globaltop(message, limit=101, title='🌏 Глобальний топ русофобій')
 
 
-# Виведення топ 10
+# /top10
 async def top10(message: types.Message):
     await show_top(message, limit=10, title='📊 Топ 10 русофобій чату')
 
 
-# Виведення топа
+# /top
 async def top(message: types.Message):
     await show_top(message, limit=101, title='📊 Топ русофобій чату')
 
 
-# Магазин
+# /shop
 async def shop(message: types.Message):
     await reply_and_delete(message, "🫡 Привіт. Зроби добру справу, задонать адміну на плитоноску, і отримав кг! Детальніше: @OnilyxeBot")
+
+
+# /my
+async def my(message: types.Message):
+    if await check_type(message):
+        return
+
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+
+    async with aiosqlite.connect('src/database.db') as db:
+        cursor = await db.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+        result = await cursor.fetchone()
+
+    if message.from_user.username:
+        mention = f"[{message.from_user.username}](https://t.me/{message.from_user.username})"
+    else:
+        mention = message.from_user.first_name
+
+    if result is None:
+        await reply_and_delete(message, f'😯 {mention}, ти ще не грав')
+    else:
+        rusophobia = result[0]
+        await reply_and_delete(message, f"😡 {mention}, твоя русофобія: `{rusophobia}` кг")
+
+
+# /help
+async def help(message: types.Message):
+    keyboard = InlineKeyboardMarkup(row_width=4)
+    main_game_button = InlineKeyboardButton(text="Основна гра - /killru", callback_data="main_game")
+    keyboard.add(main_game_button)
+    games_buttons = [
+        InlineKeyboardButton(text="🧌", callback_data="game_club"),
+        InlineKeyboardButton(text="🎲", callback_data="game_dice"),
+        InlineKeyboardButton(text="🎯", callback_data="game_darts"),
+        InlineKeyboardButton(text="🏀", callback_data="game_basketball"),
+        InlineKeyboardButton(text="⚽️", callback_data="game_football"),
+        InlineKeyboardButton(text="🎳", callback_data="game_bowling"),
+        InlineKeyboardButton(text="🎰", callback_data="game_casino")
+    ]
+    keyboard.add(*games_buttons)
+    text = await message.reply("⚙️ Тут ти зможеш дізнатися\nпро мене все", reply_markup=keyboard)
+    await asyncio.sleep(DELETE)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=text.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
+        pass
+    return
+
+
+async def game_selected(callback_query: types.CallbackQuery):
+    game_emojis = {
+        "main_game": "Гра в русофобію\nУ гру можна зіграти кожен день один раз, виконавши /killru\nПри цьому кількість русофобії випадковим чином збільшиться(до +25) або зменшиться(до -5)\nРейтин можна подивитися виконавши /top. Є маленький варіант /top10, і глобальний топ, показує топ серед усіх учасників /globaltop\nВиконавши /my можна дізнатися свою кількість русофобії\nПередати свою русофобію іншому користувачу, можна відповівши йому командою /give, вказавши кількість русофобії\nІнформацію про бота можна подивитися, виконавши /about\nСлужбова інформація: /ping\nВаріанти міні-ігор можна переглянути за командою /help, вибравши знизу емодзі, що вказує на гру\nВийти з гри (прогрес видаляється): /leave\n\n\nЯкщо мені видати права адміністратора (видалення повідомлень), то я через годину буду видаляти повідомлення від мене і які мене викликали. Залишаючи тільки про зміни в русофобії\n\n\nKillru. Смерть всьому російському. 🫡",
+        "game_club": "🧌 Знайди і вбий москаля. Суть гри вгадати де знаходиться москаль на сітці 3х3\n⏱️ Можна зіграти раз на 3 години\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /game",
+        "game_dice": "🎲 Гра у кості. Суть гри вгадати яке випаде число, парне чи непарне\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /dice",
+        "game_darts": "🎯 Гра в дартс. Суть гри потрапити в центр\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /darts",
+        "game_basketball": "🏀 Гра в баскетбол. Суть гри потрапити в кошик м'ячем\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /basketball",
+        "game_football": "⚽️ Гра у футбол. Суть гри потрапити м'ячем у ворота\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /football",
+        "game_bowling": "🎳 Гра в боулінг. Суть гри вибити страйк\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /bowling",
+        "game_casino": "🎰 Гра в казино. Суть гри вибити джекпот\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70. Якщо вибив джекпот, то ставка множиться на 5\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /casino",
+   }
+    selected_game = game_emojis[callback_query.data]    
+    keyboard = InlineKeyboardMarkup()
+    back_button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_to_games")
+    keyboard.add(back_button)
+    await bot.answer_callback_query(callback_query.id, "✅")
+    await callback_query.message.edit_text(f"{selected_game}", reply_markup=keyboard, parse_mode="Markdown")
+
+
+async def back_to_games(callback_query: types.CallbackQuery):
+    keyboard = InlineKeyboardMarkup(row_width=4)
+    main_game_button = InlineKeyboardButton(text="Основна гра - /killru", callback_data="main_game")
+    keyboard.add(main_game_button)
+    games_buttons = [
+        InlineKeyboardButton(text="🧌", callback_data="game_club"),
+        InlineKeyboardButton(text="🎲", callback_data="game_dice"),
+        InlineKeyboardButton(text="🎯", callback_data="game_darts"),
+        InlineKeyboardButton(text="🏀", callback_data="game_basketball"),
+        InlineKeyboardButton(text="⚽️", callback_data="game_football"),
+        InlineKeyboardButton(text="🎳", callback_data="game_bowling"),
+        InlineKeyboardButton(text="🎰", callback_data="game_casino")
+    ]
+    keyboard.add(*games_buttons)
+    await bot.answer_callback_query(callback_query.id, "✅")
+    await callback_query.message.edit_text("⚙️ Тут ти зможеш дізнатися\nпро мене все", reply_markup=keyboard)
+
+
+# /leave
+async def leave(message: types.Message):
+    if await check_type(message):
+        return
+
+    inline = InlineKeyboardMarkup(row_width=2)
+    inline.add(InlineKeyboardButton("✅ Так", callback_data="confirm_leave"), InlineKeyboardButton("❌ Ні", callback_data="cancel_leave"))
+    
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    mention = f"[{message.from_user.username}](https://t.me/{message.from_user.username})" if message.from_user.username else message.from_user.first_name
+
+    async with aiosqlite.connect('src/database.db') as db:
+        async with db.execute('SELECT * FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) as cursor:
+            user_exists = await cursor.fetchone()
+
+    if not user_exists:
+        await reply_and_delete(message, f"😯 {mention}, ти й так не граєш")
+
+    else:
+        msg = await bot.send_message(chat_id, f"😡 {mention}, ти впевнений, що хочеш ливнути з гри? Твої дані буде видалено з бази даних. Цю дію не можна буде скасувати", reply_markup=inline, parse_mode="Markdown", disable_web_page_preview=True)
+        await cache.set(f"leavers_{msg.message_id}", user_id)
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+            pass
+
+
+async def leave_inline(callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    leaver_id = await cache.get(f"leavers_{callback_query.message.message_id}")
+
+    if leaver_id != user_id:
+        await bot.answer_callback_query(callback_query.id, "❌ Ці кнопочки не для тебе!", show_alert=True)
+        return
+
+    mention = f"[{callback_query.from_user.username}](https://t.me/{callback_query.from_user.username})" if callback_query.from_user.username else callback_query.from_user.first_name
+
+    if callback_query.data == 'confirm_leave':
+        async with aiosqlite.connect('src/database.db') as db:
+            await db.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+            if TEST == 'True':
+                await db.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL, dice = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+            await db.commit()
+
+        await bot.answer_callback_query(callback_query.id, "✅ Успішно")
+        await bot.edit_message_text(f"🤬 {mention}, ти покинув гру, і тебе було видалено з бази даних", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
+    else:
+        await bot.answer_callback_query(callback_query.id, "❌ Скасовано")
+        await bot.edit_message_text(f"🫡 {mention}, ти залишився у грі", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=callback_query.message.message_id)
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+            pass  
+
+
+# /give
+async def give(message: types.Message):
+    if await check_type(message):
+        return
+
+    if not message.reply_to_message:
+        await reply_and_delete(message, "⚙️ Використовуй `/give N` у відповідь на повідомлення")
+        return
+
+    receiver_id = message.reply_to_message.from_user.id
+    receiver_is_bot = message.reply_to_message.from_user.is_bot
+
+    if receiver_is_bot:
+        await reply_and_delete(message, "⚠️ Боти не можуть грати")
+        return
+
+    global givers
+    if message.reply_to_message and message.from_user.id != message.reply_to_message.from_user.id:
+        parts = message.text.split()
+        if len(parts) != 2:
+            await reply_and_delete(message, "⚙️ Використовуй `/give N` у відповідь на повідомлення")
+            return
+
+        try:
+            value = int(parts[1])
+            if value <= 0:
+                raise ValueError
+
+        except ValueError:
+            await reply_and_delete(message, "🤨 Типо розумний? Введи плюсове і ціле число. Наприклад: /give `5` у відповідь на повідомлення")
+            return
+
+
+        giver_id = message.from_user.id
+        chat_id = message.chat.id
+        now = datetime.now()
+
+        async with aiosqlite.connect('src/database.db') as db:
+            async with db.cursor() as cursor:   
+                await cursor.execute('SELECT give FROM cooldowns WHERE user_id = ? AND chat_id = ? AND give IS NOT NULL', (giver_id, chat_id))
+                last_given = await cursor.fetchone()
+
+        if last_given and last_given[0]:
+            last_given = datetime.strptime(last_given[0], '%Y-%m-%d %H:%M:%S') 
+            if last_given + timedelta(hours=5) > now:
+                cooldown_time = (last_given + timedelta(hours=5)) - now
+                cooldown_time = str(cooldown_time).split('.')[0]
+                await reply_and_delete(message,f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`")
+                return
+        else:
+            last_given = None
+
+        async with aiosqlite.connect('src/database.db') as db:
+            async with db.cursor() as cursor: 
+                await cursor.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, chat_id))
+                result = await cursor.fetchone()
+                if not result or result[0] < value:
+                    await reply_and_delete(message, f"⚠️ У тебе `{result[0] if result else 0}` кг. Цього недостатньо")
+                    return
+
+
+        inline = InlineKeyboardMarkup(row_width=2)
+        inline_yes = InlineKeyboardButton('✅ Так', callback_data=f'give_{value}_yes_{message.reply_to_message.from_user.id}')
+        inline_no = InlineKeyboardButton('❌ Ні', callback_data=f'give_{value}_no_{message.reply_to_message.from_user.id}')
+        inline.add(inline_yes, inline_no)
+
+        current_rusophobia = result[0] if result else 0
+        mention = ('[' + message.reply_to_message.from_user.username + ']' + '(https://t.me/' + message.reply_to_message.from_user.username + ')') if message.reply_to_message.from_user.username else message.reply_to_message.from_user.first_name
+        giver_mention = ('[' + message.from_user.username + ']' + '(https://t.me/' + message.from_user.username + ')') if message.from_user.username else message.from_user.first_name
+        sent_message = await bot.send_message(chat_id=message.chat.id, text=f"🔄 {giver_mention} збирається передати `{value}` кг русофобії {mention}\n🏷️ В тебе: `{current_rusophobia}` кг. Підтверджуєш?", reply_markup=inline, parse_mode="Markdown", disable_web_page_preview=True)
+
+        await cache.set(f"givers_{sent_message.message_id}", message.from_user.id)
+
+        await asyncio.sleep(DELETE)
+        try:
+            await bot.delete_message(message.chat.id, message.message_id)
+        except (MessageCantBeDeleted, MessageToDeleteNotFound):
+                pass
+    else:
+        await reply_and_delete(message, "⚙️ Використовуй `/give N` у відповідь на повідомлення")
+
+
+async def give_inline(callback_query: types.CallbackQuery):
+    _, value, answer, receiver_id = callback_query.data.split('_')
+    value = int(value)
+    receiver_id = int(receiver_id)
+    giver_id = await cache.get(f"givers_{callback_query.message.message_id}")
+
+    receiver = await bot.get_chat_member(callback_query.message.chat.id, receiver_id)
+    mention = ('[' + receiver.user.username + ']' + '(https://t.me/' + receiver.user.username + ')') if receiver.user.username else receiver.user.first_name
+
+    now = datetime.now()
+    
+    async with aiosqlite.connect('src/database.db') as db:
+        async with db.execute('SELECT give FROM cooldowns WHERE user_id = ? AND chat_id = ? AND give IS NOT NULL', (giver_id, callback_query.message.chat.id)) as cursor:
+            last_given_row = await cursor.fetchone()
+
+        if last_given_row and last_given_row[0]:
+            last_given = datetime.strptime(last_given_row[0], '%Y-%m-%d %H:%M:%S')
+            if last_given + timedelta(hours=5) > now:
+                cooldown_time = (last_given + timedelta(hours=5)) - now
+                cooldown_time = str(cooldown_time).split('.')[0]
+                await edit_and_delete(bot, callback_query.message.chat.id, callback_query.message.message_id, f"⚠️ Ти ще не можеш передати русофобію. Спробуй через `{cooldown_time}`")
+                return
+
+        if giver_id != callback_query.from_user.id:
+            await bot.answer_callback_query(callback_query.id, text="❌ Ці кнопочки не для тебе!", show_alert=True)
+            return
+
+        if answer == 'yes':
+            await db.execute('UPDATE user_values SET value = value - ? WHERE user_id = ? AND chat_id = ?', (value, giver_id, callback_query.message.chat.id))
+            await db.execute(
+                'INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?) '
+                'ON CONFLICT(user_id, chat_id) DO UPDATE SET value = value + ?', (receiver_id, callback_query.message.chat.id, value, value))
+            if TEST == 'False':
+                await db.execute(
+                    'UPDATE cooldowns SET give = ? WHERE user_id = ? AND chat_id = ?', (now.strftime("%Y-%m-%d %H:%M:%S"), giver_id, callback_query.message.chat.id))
+            await db.commit()
+
+            async with db.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (giver_id, callback_query.message.chat.id)) as cursor:
+                updated_value = await cursor.fetchone()
+
+            if callback_query.from_user.username:
+                giver_mention = f"[{callback_query.from_user.username}](https://t.me/{callback_query.from_user.username})"
+            else:
+                giver_mention = callback_query.from_user.first_name
+
+            await bot.answer_callback_query(callback_query.id, "✅ Успішно")
+            await bot.edit_message_text(
+                text=f"✅ {giver_mention} передав `{value}` кг русофобії {mention}\n🏷️ Тепер в тебе: `{updated_value[0] if updated_value else 0}` кг",
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                parse_mode="Markdown",
+                disable_web_page_preview=True
+            )
+        else:
+            await bot.answer_callback_query(callback_query.id, "❌ Скасовано")
+            await edit_and_delete(bot, callback_query.message.chat.id, callback_query.message.message_id, "❌ Передача русофобії скасована")
+            return
 
 
 # Ініціалізація обробника
@@ -126,3 +418,11 @@ def messages_handlers(dp, bot):
     dp.register_message_handler(top10, commands=['top10'])
     dp.register_message_handler(top, commands=['top'])
     dp.register_message_handler(shop, commands=['shop'])
+    dp.register_message_handler(my, commands=['my'])
+    dp.register_message_handler(help, commands=['help'])
+    dp.register_callback_query_handler(game_selected, lambda c: c.data == 'main_game' or c.data.startswith('game_'))
+    dp.register_callback_query_handler(back_to_games, lambda c: c.data == 'back_to_games')
+    dp.register_message_handler(leave, commands=['leave'])
+    dp.register_callback_query_handler(leave_inline, lambda c: c.data in ['confirm_leave', 'cancel_leave'])
+    dp.register_message_handler(give, commands=['give'])
+    dp.register_callback_query_handler(give_inline, lambda c: c.data and c.data.startswith('give_'))

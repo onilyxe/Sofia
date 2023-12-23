@@ -33,7 +33,7 @@ dp = Dispatcher(bot)
 async def setup_database():
     async with aiosqlite.connect('src/database.db') as db:
         await db.execute('''CREATE TABLE IF NOT EXISTS user_values (user_id INTEGER, chat_id INTEGER, value INTEGER, PRIMARY KEY(user_id, chat_id))''')
-        await db.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru TIMESTAMP, give TIMESTAMP, game TIMESTAMP, dice TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
+        await db.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru TIMESTAMP, give TIMESTAMP, game TIMESTAMP, dice TIMESTAMP, darts TIMESTAMP, basketball TIMESTAMP, football TIMESTAMP, bowling TIMESTAMP, casino TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
         await db.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
         await db.execute('''CREATE TABLE IF NOT EXISTS queries (id INTEGER PRIMARY KEY, datetime TIMESTAMP NOT NULL, count INTEGER NOT NULL DEFAULT 0)''')
         await db.commit()
@@ -135,7 +135,6 @@ async def show_top(message: types.Message, limit: int, title: str):
                 message_text += f'{count}. {user_name}: {rusophobia} кг\n'
 
         await reply_and_delete(message, message_text)
-
 
 
 # Виведення глобального топа

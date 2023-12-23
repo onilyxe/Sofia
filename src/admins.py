@@ -26,7 +26,7 @@ except (FileNotFoundError, KeyError) as e:
 bot = Bot(token=TOKEN)
 
 
-#-----/chatlist
+# /chatlist
 async def chatlist(message: types.Message):
     if not await admin(message):
         return
@@ -66,7 +66,7 @@ async def chatlist(message: types.Message):
         pass
 
 
-#-----/message
+# /message
 async def message(message: types.Message):
     if not await admin(message):
         return
@@ -121,7 +121,7 @@ async def message(message: types.Message):
     await reply_and_delete(message, reply_text)
 
 
-#-----/edit
+# /edit
 async def edit(message: types.Message):
     if not await admin(message):
         return
