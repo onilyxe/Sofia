@@ -1,4 +1,3 @@
-# Імпорти
 import configparser
 import aiosqlite
 import datetime
@@ -9,15 +8,11 @@ import asyncio
 import random
 import math
 
+from src.functions import add_chat, check_type, reply_and_delete, send_and_delete, edit_and_delete, check_settings
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.exceptions import MessageCantBeDeleted, MessageToDeleteNotFound
 from datetime import datetime, timedelta, time
 from aiogram import Bot, types
-
-
-# Імпортуємо інші частини коду
-from src.functions import add_chat, check_type, reply_and_delete, send_and_delete, edit_and_delete, check_settings
-
 
 # Імпортуємо конфігураційний файл
 config = configparser.ConfigParser()
@@ -31,11 +26,9 @@ except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу в sofia.py: {e}")
     exit()
 
-
 # Ініціалізація бота та кеш-пам'яті
 bot = Bot(token=TOKEN)
 cache = aiocache.Cache()
-
 
 # /killru
 async def killru(message: types.Message):
@@ -56,7 +49,7 @@ async def killru(message: types.Message):
         newuser = False
         if not value_killru:
             newuser = True
-            welcome = f"🎉 {mention}, вітаю! Ти тепер зареєстрований у грі русофобії!"
+            welcome = f"🥳 {mention}, вітаю! Ти тепер граєш у русофобію"
             asyncio.create_task(reply_and_delete(message, welcome))
             await db.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?)', (user_id, chat_id, 0))
             await db.commit()
@@ -79,11 +72,11 @@ async def killru(message: types.Message):
             bonus = ""
             bonus_times = ['00:00:00', '00:13:37', '01:00:00', '01:11:11', '02:00:00', '02:22:22', '22:22:22', '03:00:00', '03:33:33', '04:00:00', '04:20:00', '04:44:44', '05:00:00', '05:55:55', '06:00:00', '07:00:00', '08:00:00', '09:00:00', '10:00:00', '11:00:00', '11:11:11', '12:00:00', '13:00:00', '13:33:37', '14:00:00', '15:00:00', '16:00:00', '17:00:00', '18:00:00', '19:00:00', '20:00:00', '21:00:00', '22:00:00', '23:00:00']
             if cooldown_time_str in bonus_times:
-                bonus = "\n\n🎉 Гарний час! Тримай за удачу `5` кг!"
+                bonus = "\n\n👏 Гарний час! Тримай за це `5` кг!"
                 await db.execute('UPDATE user_values SET value = value + 5 WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
                 await db.commit()
 
-            await reply_and_delete(message, f"⚠️ Ти можеш використати цю команду тільки один раз на день. Спробуй через `{cooldown_time_str}`{bonus}")
+            await reply_and_delete(message, f"ℹ️ Ти можеш грати тільки один раз на день. Спробуй через `{cooldown_time_str}`{bonus}")
             return
 
         else:
@@ -96,7 +89,7 @@ async def killru(message: types.Message):
                 await db.commit()
 
         if TEST == 'True':
-            rusophobia = 1488
+            rusophobia = 1000
         else:
             rusophobia = random.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 25])
 
@@ -115,7 +108,7 @@ async def killru(message: types.Message):
         else:
             message_text = f"📉 {mention}, твоя русофобія зменшилась на `{abs(rusophobia)}` кг"
 
-        message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг. "
+        message_text += f"\n🏷️ Тепер в тебе: `{new_rusophobia}` кг "
 
         now = datetime.now()
         midnight = datetime.combine(now.date() + timedelta(days=1), datetime.min.time())
@@ -124,7 +117,7 @@ async def killru(message: types.Message):
                               f"{int((remaining_time.total_seconds() % 3600) // 60):02d}:" \
                               f"{int(remaining_time.total_seconds() % 60):02d}"
                               
-        message_text += f"Продовжуй грати через `{time_until_midnight}`"
+        message_text += f"\n⏱ Продовжуй грати через `{time_until_midnight}`"
 
         await send_and_delete(message, chat_id=message.chat.id, reply_text=message_text)
 
@@ -149,11 +142,11 @@ async def game(message: types.Message):
 
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=3)
+            cooldown = timedelta(hours=2)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
-                await reply_and_delete(message, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                await reply_and_delete(message, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                 return 
 
         cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -164,7 +157,7 @@ async def game(message: types.Message):
             balance = 0
 
         if balance <= 0:
-            await reply_and_delete(message,f"⚠️ У тебе недостатньо русофобії для гри")
+            await reply_and_delete(message,f"ℹ️ У тебе `{balance}` кг. Цього недостатньо")
             return
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
 
@@ -180,7 +173,6 @@ async def game(message: types.Message):
         except (MessageCantBeDeleted, MessageToDeleteNotFound):
             pass
 
-
 async def handle_game_buttons(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     chat_id = callback_query.message.chat.id
@@ -192,8 +184,8 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
 
     async with aiosqlite.connect('src/database.db') as db:
         if callback_query.data == 'cancel':
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "⚠️ Гру скасовано")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "ℹ️ Гру скасовано")
             return
 
 
@@ -205,17 +197,17 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=3)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
             if initial_balance is None or int(initial_balance) < bet:
-                await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+                await bot.answer_callback_query(callback_query.id, "❌ Недостатньо русофобії")
                 return
 
             new_balance = int(initial_balance) - bet
@@ -230,7 +222,7 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             cell_buttons.append(InlineKeyboardButton("❌ Відміна", callback_data="cancel_cell"))
             keyboard.add(*cell_buttons)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Ставка прийнята")
             await bot.edit_message_text(
                 f"🧌 {mention}, знайди москаля:\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
@@ -246,8 +238,8 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
             await db.commit()
 
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('cell_'):
@@ -258,12 +250,12 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=3)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
@@ -288,10 +280,10 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET game = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
             
             await db.commit()
-            wait = "🧌 Переконуємося у смерті кацапа.."
+            wait = "🧌 Тикаємо палицею в труп, здох чи не.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
             await asyncio.sleep(4)
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Гру завершено")
             await bot.edit_message_text(message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
@@ -315,11 +307,11 @@ async def dice(message: types.Message):
 
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=1)
+            cooldown = timedelta(hours=2)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
-                await reply_and_delete(message, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                await reply_and_delete(message, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                 return
 
         cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -327,7 +319,7 @@ async def dice(message: types.Message):
         balance = balance[0] if balance else 0
 
         if balance <= 0:
-            await reply_and_delete(message,f"⚠️ У тебе недостатньо русофобії для гри")
+            await reply_and_delete(message,f"ℹ️ У тебе `{balance}` кг. Цього недостатньо")
             return
 
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
@@ -356,8 +348,8 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
 
     async with aiosqlite.connect('src/database.db') as db:
         if callback_query.data == 'canceldice':
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "⚠️ Гру скасовано")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "ℹ️ Гру скасовано")
             return
 
         elif callback_query.data.startswith('betdice_'):
@@ -367,17 +359,17 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
             if initial_balance is None or int(initial_balance) < bet:
-                await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+                await bot.answer_callback_query(callback_query.id, "ℹ️ Недостатньо русофобії")
                 return
 
             new_balance = int(initial_balance) - bet
@@ -394,7 +386,7 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             keyboard.row(button_even, button_odd)
             keyboard.add(button_cancel)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Ставка прийнята")
             await bot.edit_message_text(
                 f"🎲 {mention}, зроби свій вибір:\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
@@ -406,8 +398,8 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             await db.execute("UPDATE user_values SET value = value + ? WHERE user_id = ? AND chat_id = ?", (bet, user_id, chat_id))
             await db.commit()
 
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('even_') or callback_query.data.startswith('odd_'):
@@ -419,12 +411,12 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             if TEST == 'False':
@@ -432,7 +424,7 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET dice = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
-            wait = "🎲 Чекаємо на результат.."
+            wait = "🎲 Кидаємо кубик.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
             dice_message = await bot.send_dice(chat_id=chat_id)
@@ -458,7 +450,7 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
 
             await db.commit()
             await asyncio.sleep(4)
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Гру завершено")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
@@ -482,11 +474,11 @@ async def darts(message: types.Message):
 
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=1)
+            cooldown = timedelta(hours=2)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
-                await reply_and_delete(message, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                await reply_and_delete(message, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                 return
 
         cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -494,7 +486,7 @@ async def darts(message: types.Message):
         balance = balance[0] if balance else 0
 
         if balance <= 0:
-            await reply_and_delete(message,f"⚠️ У тебе недостатньо русофобії для гри")
+            await reply_and_delete(message,f"ℹ️ У тебе `{balance}` кг. Цього недостатньо")
             return
 
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
@@ -523,8 +515,8 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
 
     async with aiosqlite.connect('src/database.db') as db:
         if callback_query.data == 'canceldarts':
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "⚠️ Гру скасовано")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "ℹ️ Гру скасовано")
             return
 
         elif callback_query.data.startswith('betdarts_'):
@@ -534,17 +526,17 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
             if initial_balance is None or int(initial_balance) < bet:
-                await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+                await bot.answer_callback_query(callback_query.id, "ℹ️ Недостатньо русофобії")
                 return
 
             new_balance = int(initial_balance) - bet
@@ -555,12 +547,12 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
             potential_win = math.ceil(bet * 2)
 
             keyboard = InlineKeyboardMarkup()
-            button_go = InlineKeyboardButton("Грати", callback_data=f"godarts_{bet}")
-            button_cancel = InlineKeyboardButton("Відміна", callback_data="canceldarts_cell")
+            button_go = InlineKeyboardButton("▶️ Грати", callback_data=f"godarts_{bet}")
+            button_cancel = InlineKeyboardButton("❌ Відміна", callback_data="canceldarts_cell")
             keyboard.row(button_go)
             keyboard.add(button_cancel)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Ставка прийнята")
             await bot.edit_message_text(
                 f"🎯 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
@@ -572,8 +564,8 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
             await db.execute("UPDATE user_values SET value = value + ? WHERE user_id = ? AND chat_id = ?", (bet, user_id, chat_id))
             await db.commit()
 
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('godarts_'):
@@ -585,12 +577,12 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             if TEST == 'False':
@@ -598,7 +590,7 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET darts = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
-            wait = "🎯 Чекаємо на результат.."
+            wait = "🎯 Прицілюємося.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
             darts_message = await bot.send_dice(chat_id=chat_id, emoji='🎯')
@@ -625,7 +617,7 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
 
             await db.commit()
             await asyncio.sleep(4)
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Гру завершено")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
@@ -649,11 +641,11 @@ async def basketball(message: types.Message):
 
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=1)
+            cooldown = timedelta(hours=2)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
-                await reply_and_delete(message, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                await reply_and_delete(message, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                 return
 
         cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -661,7 +653,7 @@ async def basketball(message: types.Message):
         balance = balance[0] if balance else 0
 
         if balance <= 0:
-            await reply_and_delete(message,f"⚠️ У тебе недостатньо русофобії для гри")
+            await reply_and_delete(message,f"ℹ️ У тебе `{balance}` кг. Цього недостатньо")
             return
 
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
@@ -690,8 +682,8 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
 
     async with aiosqlite.connect('src/database.db') as db:
         if callback_query.data == 'cancelbasketball':
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "⚠️ Гру скасовано")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "ℹ️ Гру скасовано")
             return
 
         elif callback_query.data.startswith('betbasketball_'):
@@ -701,17 +693,17 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
             if initial_balance is None or int(initial_balance) < bet:
-                await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+                await bot.answer_callback_query(callback_query.id, "ℹ️ Недостатньо русофобії")
                 return
 
             new_balance = int(initial_balance) - bet
@@ -722,14 +714,14 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
             potential_win = math.ceil(bet * 1.5)
 
             keyboard = InlineKeyboardMarkup()
-            button_go = InlineKeyboardButton("Грати", callback_data=f"gobasketball_{bet}")
-            button_cancel = InlineKeyboardButton("Відміна", callback_data="cancelbasketball_cell")
+            button_go = InlineKeyboardButton("▶️ Грати", callback_data=f"gobasketball_{bet}")
+            button_cancel = InlineKeyboardButton("❌ Відміна", callback_data="cancelbasketball_cell")
             keyboard.row(button_go)
             keyboard.add(button_cancel)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Ставка прийнята")
             await bot.edit_message_text(
-                f"🎯 {mention}, готовий(а)?\n\n"
+                f"🏀 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
                 f"💰 Можливий виграш: `{potential_win} кг`", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -739,8 +731,8 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
             await db.execute("UPDATE user_values SET value = value + ? WHERE user_id = ? AND chat_id = ?", (bet, user_id, chat_id))
             await db.commit()
 
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('gobasketball_'):
@@ -752,12 +744,12 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             if TEST == 'False':
@@ -765,7 +757,7 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET basketball = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
-            wait = "🏀 Чекаємо на результат.."
+            wait = "🏀 Прикидаємося Леброном Джеймсом.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
             basketball_message = await bot.send_dice(chat_id=chat_id, emoji='🏀')
@@ -780,7 +772,6 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
 
             bet = await cache.get(f"betbasketball_{user_id}_{chat_id}")
             bet = int(bet)
-            
 
             if result_basketball >= 4:
                 bet_won = math.ceil(bet * 1.5)
@@ -792,7 +783,7 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
 
             await db.commit()
             await asyncio.sleep(4)
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Гру завершено")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
@@ -816,11 +807,11 @@ async def football(message: types.Message):
 
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=1)
+            cooldown = timedelta(hours=2)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
-                await reply_and_delete(message, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                await reply_and_delete(message, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                 return
 
         cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -828,7 +819,7 @@ async def football(message: types.Message):
         balance = balance[0] if balance else 0
 
         if balance <= 0:
-            await reply_and_delete(message,f"⚠️ У тебе недостатньо русофобії для гри")
+            await reply_and_delete(message,f"ℹ️ У тебе `{balance}` кг. Цього недостатньо")
             return
 
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
@@ -857,8 +848,8 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
 
     async with aiosqlite.connect('src/database.db') as db:
         if callback_query.data == 'cancelfootball':
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "⚠️ Гру скасовано")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "ℹ️ Гру скасовано")
             return
 
         elif callback_query.data.startswith('betfootball_'):
@@ -868,17 +859,17 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
             if initial_balance is None or int(initial_balance) < bet:
-                await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+                await bot.answer_callback_query(callback_query.id, "ℹ️ Недостатньо русофобії")
                 return
 
             new_balance = int(initial_balance) - bet
@@ -889,12 +880,12 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
             potential_win = math.ceil(bet * 1.5)
 
             keyboard = InlineKeyboardMarkup()
-            button_go = InlineKeyboardButton("Грати", callback_data=f"gofootball_{bet}")
-            button_cancel = InlineKeyboardButton("Відміна", callback_data="cancelfootball_cell")
+            button_go = InlineKeyboardButton("▶️ Грати", callback_data=f"gofootball_{bet}")
+            button_cancel = InlineKeyboardButton("❌ Відміна", callback_data="cancelfootball_cell")
             keyboard.row(button_go)
             keyboard.add(button_cancel)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Ставка прийнята")
             await bot.edit_message_text(
                 f"⚽️ {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
@@ -906,8 +897,8 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
             await db.execute("UPDATE user_values SET value = value + ? WHERE user_id = ? AND chat_id = ?", (bet, user_id, chat_id))
             await db.commit()
 
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('gofootball_'):
@@ -919,12 +910,12 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             if TEST == 'False':
@@ -932,7 +923,7 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET football = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
-            wait = "⚽️ Чекаємо на результат.."
+            wait = "⚽️ Майже дев'ятка йоу.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
             football_message = await bot.send_dice(chat_id=chat_id, emoji='⚽️')
@@ -959,7 +950,7 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
 
             await db.commit()
             await asyncio.sleep(4)
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Гру завершено")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
@@ -983,11 +974,11 @@ async def bowling(message: types.Message):
 
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=1)
+            cooldown = timedelta(hours=2)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
-                await reply_and_delete(message, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                await reply_and_delete(message, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                 return
 
         cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -995,7 +986,7 @@ async def bowling(message: types.Message):
         balance = balance[0] if balance else 0
 
         if balance <= 0:
-            await reply_and_delete(message,f"⚠️ У тебе недостатньо русофобії для гри")
+            await reply_and_delete(message,f"ℹ️ У тебе `{balance}` кг. Цього недостатньо")
             return
 
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
@@ -1024,8 +1015,8 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
 
     async with aiosqlite.connect('src/database.db') as db:
         if callback_query.data == 'cancelbowling':
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "⚠️ Гру скасовано")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "ℹ️ Гру скасовано")
             return
 
         elif callback_query.data.startswith('betbowling_'):
@@ -1035,17 +1026,17 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
             if initial_balance is None or int(initial_balance) < bet:
-                await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+                await bot.answer_callback_query(callback_query.id, "ℹ️ Недостатньо русофобії")
                 return
 
             new_balance = int(initial_balance) - bet
@@ -1056,12 +1047,12 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
             potential_win = math.ceil(bet * 2)
 
             keyboard = InlineKeyboardMarkup()
-            button_go = InlineKeyboardButton("Грати", callback_data=f"gobowling_{bet}")
-            button_cancel = InlineKeyboardButton("Відміна", callback_data="cancelbowling_cell")
+            button_go = InlineKeyboardButton("▶️ Грати", callback_data=f"gobowling_{bet}")
+            button_cancel = InlineKeyboardButton("❌ Відміна", callback_data="cancelbowling_cell")
             keyboard.row(button_go)
             keyboard.add(button_cancel)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Ставка прийнята")
             await bot.edit_message_text(
                 f"🎳 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
@@ -1073,8 +1064,8 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
             await db.execute("UPDATE user_values SET value = value + ? WHERE user_id = ? AND chat_id = ?", (bet, user_id, chat_id))
             await db.commit()
 
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
+            await bot.answer_callback_query(callback_query.id, "ℹ️")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('gobowling_'):
@@ -1086,12 +1077,12 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             if TEST == 'False':
@@ -1099,7 +1090,7 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET bowling = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
-            wait = "🎳 Чекаємо на результат.."
+            wait = "🎳 Ловимо рівновагу.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
             bowling_message = await bot.send_dice(chat_id=chat_id, emoji='🎳')
@@ -1126,7 +1117,7 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
 
             await db.commit()
             await asyncio.sleep(4)
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Гру завершено")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
@@ -1150,11 +1141,11 @@ async def casino(message: types.Message):
 
         if last_played and last_played[0]:
             last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-            cooldown = timedelta(hours=1)
+            cooldown = timedelta(hours=2)
             if datetime.now() < last_played + cooldown:
                 time_left = last_played + cooldown - datetime.now()
                 cooldown_time = str(time_left).split(".")[0]
-                await reply_and_delete(message, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                await reply_and_delete(message, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                 return
 
         cursor = await db.execute("SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
@@ -1162,7 +1153,7 @@ async def casino(message: types.Message):
         balance = balance[0] if balance else 0
 
         if balance <= 0:
-            await reply_and_delete(message,f"⚠️ У тебе недостатньо русофобії для гри")
+            await reply_and_delete(message,f"ℹ️ У тебе `{balance}` кг. Цього недостатньо")
             return
 
         await cache.set(f"initial_balance_{user_id}_{chat_id}", balance)
@@ -1191,8 +1182,8 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
 
     async with aiosqlite.connect('src/database.db') as db:
         if callback_query.data == 'cancelcasino':
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "⚠️ Гру скасовано")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, "ℹ️ Гру скасовано")
             return
 
         elif callback_query.data.startswith('betcasino_'):
@@ -1202,17 +1193,17 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             initial_balance = await cache.get(f"initial_balance_{user_id}_{chat_id}")
             if initial_balance is None or int(initial_balance) < bet:
-                await bot.answer_callback_query(callback_query.id, "⚠️ Недостатньо русофобії")
+                await bot.answer_callback_query(callback_query.id, "ℹ️ Недостатньо русофобії")
                 return
 
             new_balance = int(initial_balance) - bet
@@ -1224,12 +1215,12 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             potential_win2 = math.ceil(bet * 10)
 
             keyboard = InlineKeyboardMarkup()
-            button_go = InlineKeyboardButton("Грати", callback_data=f"gocasino_{bet}")
-            button_cancel = InlineKeyboardButton("Відміна", callback_data="cancelcasino_cell")
+            button_go = InlineKeyboardButton("▶️ Грати", callback_data=f"gocasino_{bet}")
+            button_cancel = InlineKeyboardButton("❌ Відміна", callback_data="cancelcasino_cell")
             keyboard.row(button_go)
             keyboard.add(button_cancel)
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Ставка прийнята")
             await bot.edit_message_text(
                 f"🎰 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
@@ -1241,8 +1232,8 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             await db.execute("UPDATE user_values SET value = value + ? WHERE user_id = ? AND chat_id = ?", (bet, user_id, chat_id))
             await db.commit()
 
-            await bot.answer_callback_query(callback_query.id, "✅")
-            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Гру скасовано. Твої `{bet} кг` повернуто")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Скасовую гру..")
+            await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Гру скасовано. Твої `{bet} кг` повернуто")
             return
 
         elif callback_query.data.startswith('gocasino_'):
@@ -1254,12 +1245,12 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             last_played = await cursor.fetchone()
             if last_played and last_played[0]:
                 last_played = datetime.strptime(last_played[0], "%Y-%m-%d %H:%M:%S")
-                cooldown = timedelta(hours=1)
+                cooldown = timedelta(hours=2)
                 if datetime.now() < last_played + cooldown:
                     time_left = last_played + cooldown - datetime.now()
                     cooldown_time = str(time_left).split(".")[0]
-                    await bot.answer_callback_query(callback_query.id, "✅")
-                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"⚠️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
+                    await bot.answer_callback_query(callback_query.id, "ℹ️ Спробуй пізніше")
+                    await edit_and_delete(bot, chat_id, callback_query.message.message_id, f"ℹ️ Ти ще не можеш грати. Спробуй через `{cooldown_time}`")
                     return
 
             if TEST == 'False':
@@ -1267,7 +1258,7 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE cooldowns SET casino = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
                 await db.commit()
 
-            wait = "🎰 Чекаємо на результат.."
+            wait = "🎰 Довбаний рот цього казино, блядь! Ти хто такий, сука, щоб це зробити?.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
             casino_message = await bot.send_dice(chat_id=chat_id, emoji='🎰')
@@ -1298,7 +1289,7 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
 
             await db.commit()
             await asyncio.sleep(3)
-            await bot.answer_callback_query(callback_query.id, "✅")
+            await bot.answer_callback_query(callback_query.id, "ℹ️ Гру завершено")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 

@@ -1,13 +1,11 @@
-# Імпорти
 import configparser
 import aiosqlite
 import asyncio
-import aiogram
 import logging
+
 from aiogram.utils.exceptions import MessageCantBeDeleted, BotKicked, ChatNotFound, MessageToDeleteNotFound, Unauthorized
 from src.functions import remove_chat, admin, reply_and_delete, send_and_delete, supportusers
 from aiogram import Bot, types
-
 
 # Імпортуємо конфігураційний файл
 config = configparser.ConfigParser()
@@ -21,10 +19,8 @@ except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу в admins.py: {e}")
     exit()
 
-
 # Ініціалізація бота
 bot = Bot(token=TOKEN)
-
 
 # /chatlist
 async def chatlist(message: types.Message):
@@ -65,7 +61,6 @@ async def chatlist(message: types.Message):
     except (MessageCantBeDeleted, MessageToDeleteNotFound):
         pass
 
-
 # /message
 async def message(message: types.Message):
     if not await admin(message):
@@ -80,7 +75,6 @@ async def message(message: types.Message):
     chat_id_to_send = None
     text_to_send = None
 
-    # Determine the chat_id and text to send
     if len(parts) == 3:
         if parts[1].startswith('-100') or parts[1].lower() in ALIASES:
             chat_id_to_send = int(parts[1]) if parts[1].startswith('-100') else ALIASES[parts[1].lower()]
@@ -91,7 +85,7 @@ async def message(message: types.Message):
         text_to_send = parts[1]
 
     if not text_to_send.strip():
-        await reply_and_delete(message, "⚠️ Текст повідомлення не може бути пустим")
+        await reply_and_delete(message, "ℹ️ Текст повідомлення не може бути пустим")
         return
 
     successful_sends = 0
@@ -116,10 +110,9 @@ async def message(message: types.Message):
 
     reply_text = f"🆒 Повідомлення надіслано. Кількість чатів: `{successful_sends}`"
     if error_messages:
-        reply_text += f"\n\n⚠️ Помилки:\n{error_messages}"
+        reply_text += f"\n\nℹ️ Помилки:\n{error_messages}"
 
     await reply_and_delete(message, reply_text)
-
 
 # /edit
 async def edit(message: types.Message):
@@ -149,11 +142,11 @@ async def edit(message: types.Message):
                     return
 
                 elif len(parts) != 2:
-                    raise ValueError("⚙️ Неправильний формат. Використовуй `/edit N` у відповідь на повідомлення")
+                    raise ValueError("ℹ️ Неправильний формат. Використовуй `/edit N` у відповідь на повідомлення. Або `/edit ID N`")
                 value = parts[1]
             else:
                 if len(parts) < 2:
-                    raise ValueError("⚙️ Неправильний формат. Використовуй `/edit ID N` або `/edit ID`")
+                    raise ValueError("ℹ️ Неправильний формат. Використовуй `/edit N` у відповідь на повідомлення. Або `/edit ID N`")
                 user_id = int(parts[1])
 
                 user_info = await bot.get_chat_member(chat_id, user_id)
@@ -168,13 +161,13 @@ async def edit(message: types.Message):
                         if current_value:
                             await reply_and_delete(message, f"📊 {mention} має `{current_value[0]}` кг русофобії")
                         else:
-                            await reply_and_delete(message, f"😬 {mention} ще не має русофобії")
+                            await reply_and_delete(message, f"😬 {mention} не має русофобії")
                     return
 
                 value = parts[2]
 
             if ',' in value or '.' in value:
-                raise ValueError("⚠️ Введене значення не є цілим числом")
+                raise ValueError("ℹ️ Введене значення не є цілим числом")
 
             async with db.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) as cursor:
                 current_value = await cursor.fetchone()
@@ -200,8 +193,7 @@ async def edit(message: types.Message):
     except ValueError as e:
         await reply_and_delete(message, str(e))
     except OverflowError:
-        await reply_and_delete(message, "⚠️ Занадто велике значення. Спробуй менше число")
-
+        await reply_and_delete(message, "ℹ️ Занадто велике значення. Спробуй менше число")
 
 # /add
 async def add(message: types.Message):
@@ -211,7 +203,7 @@ async def add(message: types.Message):
         parts = message.text.split()
 
         if len(parts) != 4:
-            raise ValueError("⚙️ Неправильний формат. Використовуй `/add CHAT_ID USER_ID value`")
+            raise ValueError("ℹ️ Неправильний формат. Використовуй `/add chat_id user_id value`")
 
         chat_id = int(parts[1])
         user_id = int(parts[2])
@@ -229,7 +221,7 @@ async def add(message: types.Message):
             updated_value = current_value + value
 
             if updated_value < 0:
-                raise ValueError("⚠️ Результат не може бути від'ємним числом")
+                raise ValueError("ℹ️ Результат не може бути від'ємним числом")
 
             if current_value is None:
                 await db.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?)', (user_id, chat_id, updated_value))
@@ -242,8 +234,7 @@ async def add(message: types.Message):
     except ValueError as e:
         await reply_and_delete(message, str(e))
     except OverflowError:
-        await reply_and_delete(message, "⚠️ Занадто велике значення. Спробуй менше число")
-
+        await reply_and_delete(message, "ℹ️ Занадто велике значення. Спробуй менше число")
 
 # Ініціалізація обробника
 def admins_handlers(dp, bot):

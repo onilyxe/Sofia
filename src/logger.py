@@ -1,14 +1,12 @@
-# Імпорти
 import logging
 import os
+
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
-
 
 # Створюємо папку logs якщо її немає
 if not os.path.exists('src/logs'):
     os.makedirs('src/logs')
-
 
 # Логування у файл і на консоль
 logger = logging.getLogger()

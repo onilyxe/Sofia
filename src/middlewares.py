@@ -1,15 +1,14 @@
-# Імпорти
 import configparser
 import aiosqlite
 import asyncio
 import aiogram
 import logging
+
 from aiogram.utils.exceptions import MessageCantBeDeleted, MessageToDeleteNotFound
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.dispatcher.handler import CancelHandler
 from datetime import datetime, timedelta
 from aiogram import Bot, types
-
 
 # Імпортуємо конфігураційний файл
 config = configparser.ConfigParser()
@@ -25,16 +24,13 @@ except (FileNotFoundError, KeyError) as e:
     logging.error(f"Помилка завантаження конфігураційного файлу в middlewares.py: {e}")
     exit()
 
-
 # Ініціалізація бота
 bot = Bot(token=TOKEN)
-
 
 # Змінні для захисту від спаму
 banlist = {}
 BANN = timedelta(minutes=BAN)
 SPEEDD = timedelta(seconds=SPEED)
-
 
 # Логування кожного повідомлення
 class Logging(BaseMiddleware):
@@ -51,7 +47,6 @@ class Logging(BaseMiddleware):
         content_type = next((self.CONTENT_TYPES[type](message) for type in self.CONTENT_TYPES if getattr(message, type, None)), "other_content")
         logging.info(f"{chat}: {user} - {content_type}")
 
-
 # Запис у базу даних кількість запитів до бота для команди /ping
 class Database(BaseMiddleware):
     async def on_process_message(self, message: types.Message, data: dict):
@@ -67,7 +62,6 @@ class Database(BaseMiddleware):
                     await db.execute('INSERT INTO queries (datetime, count) VALUES (?, 1)', (nowtime,))
 
                 await db.commit()
-
 
 # Захист від спаму
 class RateLimit(BaseMiddleware):

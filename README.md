@@ -1,48 +1,70 @@
 # Sofia for Telegram
-Entertainment bot
+Розважальний бот
 
-[Try the my bot](https://t.me/sofiarolbot)
+[Спробуй мого бота](https://t.me/sofiarolbot)
 
-Installation
+Встановлення
 ------------
 ```shell
-# Clone the repository
+# Клонуй репозиторій
 $ git clone https://github.com/onilyxe/Sofia.git
 
-# Change the working directory to Sofia
+# Змініть робочу директорію на Sofia
 $ cd Sofia
 ```
 
-Configuring
+Налаштування
 ------------
-**Open the `config.json` configuration file in a text editor and change the values to your own:**
+**Відкрийте файл конфігурації `config.ini` у текстовому редакторі та змініть значення на свої:**.
 ```ini
 [TOKEN]
-SOFIA = 0000000000:0000000000000000000000000000000000
-TEST = 0000000000:0000000000000000000000000000000000
+BOT = 0000000000:0000000000000000000000000000000000
 
 [ID]
 ADMIN = 000000000
+CHANNEL = -1000000000000
+SUPPORT = 000000000, 000000001
 
 [ALIASES]
-chatname1= -1000000000000
-chatname1 = -1000000000001
+chatname = -1000000000000
+chatnametwo = -1000000000001
 
-[SETTINGS]
+[SPAM]
+BAN = 10
+SPEED = 5
+MESSAGES = 4
+
+[SETTINGS]; True/False
+SKIPUPDATES = False
+TEST = False
+STATUS = False
 DELETE = 3600
+RANDOMGAMES = 0.35
+VERSION = v2
 ```
-* `TOKEN` is token for your Telegram bot. You can get it here: [BotFather](https://t.me/BotFather)
-* `ADMIN` is your ID
-* `ALIASES` Aliases for the chat ID so you don't have to type it in
-* `DELETE` Auto-delete message timer in seconds
+* `TOKEN` це токен для вашого Telegram-бота. Отримати його можна тут: [BotFather](https://t.me/BotFather)
+* `ADMIN` це твій ID, для адмін команд
+* `CHANNEL` ID каналу куди бот надсилає повідомлення про запуск/зупинку
+* `SUPPORT` ID юзерів, для доступу до команди /add
+* `ALIASES` Псевдоніми для ID чату, щоб не вводити його вручну
+* `BAN` Захист від спаму. Час муту у хвилинах за флуд
+* `SPEED` Час у секундах, за який потрібно надіслати повідомлення для отримання муту
+* `MESSAGES` Кількість повідомлень для отримання муту
 
-Running
+* `SKIPUPDATES` Пропускає нові повідомлення. True або False
+* `TEST` Пропускає кулдауни. True або False
+* `STATUS` Надсилає повідомлення про запуск/зупинку. True або False
+* `DELETE` Таймер автоматичного видалення повідомлень у секундах
+* `RANDOMGAMES` Шанс виграшу в /game. 1 - завжди вигравати. 0 - ніколи. 0.5 - шанс 50/50
+* `VERSION` Версія
+
+Запуск
 ------------
-Using Python
+Використовуй Python
 ```shell
-# Install requirements
+# Встанови залежності
 $ python3 -m pip install -r requirements.txt
 
-# Run script
+# Запустити бота
 $ python3 sofia.py
 ```
