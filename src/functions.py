@@ -15,6 +15,7 @@ try:
     config.read('config.ini')
     TOKEN = config['TOKEN']['BOT']
     ADMIN = int(config['ID']['ADMIN'])
+    support_str = config['ID']['SUPPORT']
     CHANNEL= int(config['ID']['CHANNEL'])
     TEST = (config['SETTINGS']['TEST'])
     STATUS = (config['SETTINGS']['STATUS'])
@@ -34,7 +35,7 @@ async def setup_database():
     async with aiosqlite.connect('src/database.db') as db:
         await db.execute('''CREATE TABLE IF NOT EXISTS user_values (user_id INTEGER, chat_id INTEGER, value INTEGER, PRIMARY KEY(user_id, chat_id))''')
         await db.execute('''CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, chat_id INTEGER, killru TIMESTAMP, give TIMESTAMP, game TIMESTAMP, dice TIMESTAMP, darts TIMESTAMP, basketball TIMESTAMP, football TIMESTAMP, bowling TIMESTAMP, casino TIMESTAMP, PRIMARY KEY(user_id, chat_id))''')
-        await db.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY)')
+        await db.execute('CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY, minigame BOOLEAN , give BOOLEAN)')
         await db.execute('''CREATE TABLE IF NOT EXISTS queries (id INTEGER PRIMARY KEY, datetime TIMESTAMP NOT NULL, count INTEGER NOT NULL DEFAULT 0)''')
         await db.commit()
 
@@ -42,10 +43,29 @@ async def setup_database():
 # Функція під час старту
 async def startup(dp):
     await setup_database()
+    commands = [
+        types.BotCommand(command="/killru", description="Спробувати підвищити свою русофобію"),
+        types.BotCommand(command="/my", description="Моя русофобія"),
+        types.BotCommand(command="/game", description="Знайди і вбий москаля"),
+        types.BotCommand(command="/dice", description="Міні гра, кинь кістки"),
+        types.BotCommand(command="/darts", description="Гра в дартс"),
+        types.BotCommand(command="/basketball", description="Гра в баскетбол"),
+        types.BotCommand(command="/football", description="Гра у футбол"),
+        types.BotCommand(command="/bowling", description="Гра в боулінг"),
+        types.BotCommand(command="/casino", description="Гра в казино"),
+        types.BotCommand(command="/help", description="Допомога"),
+        types.BotCommand(command="/give", description="Поділиться русофобією"),
+        types.BotCommand(command="/top10", description="Топ 10 гравців"),
+        types.BotCommand(command="/top", description="Топ гравців"),
+        types.BotCommand(command="/globaltop", description="Топ всіх гравців"),
+        types.BotCommand(command="/leave", description="Покинути гру"),
+        types.BotCommand(command="/about", description="Про бота"),
+        types.BotCommand(command="/ping", description="Статус бота"),
+        ]
+    await dp.bot.set_my_commands(commands)
     if STATUS == 'True':
-        startup_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
         try:
-            await dp.bot.send_message(CHANNEL, f"🚀 Старт \n⌚️ `{startup_time}`", parse_mode="Markdown")
+            await dp.bot.send_message(CHANNEL, f"🚀 Бот запущений", parse_mode="Markdown")
         except Exception as e:
             print(f"Старт error: {e}")
 
@@ -53,9 +73,8 @@ async def startup(dp):
 # Функція під час завершення
 async def shutdown(dp):
     if STATUS == 'True':
-        shutdown_time = datetime.now().strftime("%d.%m.%Y, %H:%M:%S")
         try:
-            await dp.bot.send_message(CHANNEL, f"⛔️ Стоп \n⌚️ `{shutdown_time}`", parse_mode="Markdown")
+            await dp.bot.send_message(CHANNEL, f"⛔️ Бот зупинений", parse_mode="Markdown")
         except Exception as e:
             print(f"Стоп error: {e}")
 
@@ -80,6 +99,21 @@ async def admin(message: types.Message):
         return False
     return True
 
+
+# Перевірка на адміна підтримки
+async def supportusers(message: types.Message):
+    SUPPORT = [int(id.strip()) for id in support_str.split(',')]
+    if message.from_user.id not in SUPPORT:
+        return False
+    return True
+
+
+# Перевірка налаштувань
+async def check_settings(chat_id: int, setting: str) -> bool:
+    async with aiosqlite.connect('src/database.db') as db:
+        async with db.execute(f'SELECT {setting} FROM chats WHERE chat_id = ?', (chat_id,)) as cursor:
+            result = await cursor.fetchone()
+            return result is None or result[0] is None or result[0]
 
 # Перевірка на канал і пп
 async def check_type(message: types.Message):

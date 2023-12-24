@@ -16,7 +16,7 @@ from aiogram import Bot, types
 
 
 # Імпортуємо інші частини коду
-from src.functions import add_chat, check_type, reply_and_delete, send_and_delete, edit_and_delete
+from src.functions import add_chat, check_type, reply_and_delete, send_and_delete, edit_and_delete, check_settings
 
 
 # Імпортуємо конфігураційний файл
@@ -131,6 +131,11 @@ async def killru(message: types.Message):
 
 # /game
 async def game(message: types.Message):
+    chat_id = message.chat.id
+
+    if not await check_settings(chat_id, 'minigame'):
+        return
+
     if await check_type(message):
         return
 
@@ -276,23 +281,27 @@ async def handle_game_buttons(callback_query: types.CallbackQuery):
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
                 message = f"🏆 {mention}, ти виграв(ла)! Ти знайшов і вбив москаля, з нього випало `{bet_won}` кг 🧌\n🏷️ Тепер у тебе: `{new_balance}` кг"
             else:
-                await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (balance_after_bet, user_id, chat_id))
                 message = f"😔 {mention}, ти програв(ла) `{bet}` кг 🧌\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             if TEST == 'False':
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 await db.execute("UPDATE cooldowns SET game = ? WHERE user_id = ? AND chat_id = ?", (now, user_id, chat_id))
-                await db.commit()
-
+            
+            await db.commit()
             wait = "🧌 Переконуємося у смерті кацапа.."
             await bot.edit_message_text(wait, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
 # /dice
 async def dice(message: types.Message):
+    chat_id = message.chat.id
+
+    if not await check_settings(chat_id, 'minigame'):
+        return
+
     if await check_type(message):
         return
 
@@ -448,13 +457,18 @@ async def handle_dice_buttons(callback_query: types.CallbackQuery):
                 win_message = f"😔 {mention}, ти програв(ла). Випало `{result_dice}`, {'непарне' if result_dice % 2 != 0 else 'парне'} \n🎲 Втрата: `{bet}` кг \n\n🏷️ Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
 # /darts
 async def darts(message: types.Message):
+    chat_id = message.chat.id
+
+    if not await check_settings(chat_id, 'minigame'):
+        return
+
     if await check_type(message):
         return
 
@@ -538,7 +552,7 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
             await db.commit()
 
             await cache.set(f"betdarts_{user_id}_{chat_id}", str(bet))
-            potential_win = math.ceil(bet * 1.5)
+            potential_win = math.ceil(bet * 2)
 
             keyboard = InlineKeyboardMarkup()
             button_go = InlineKeyboardButton("Грати", callback_data=f"godarts_{bet}")
@@ -548,7 +562,7 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(
-                f"🎯 {mention}, зроби свій вибір:\n\n"
+                f"🎯 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
                 f"💰 Можливий виграш: `{potential_win} кг`", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -605,19 +619,23 @@ async def handle_darts_buttons(callback_query: types.CallbackQuery):
                 bet_won = math.ceil(bet * 2)
                 new_balance = balance_after_bet + bet_won + bet
                 win_message = f"🏆 {mention}, точне попадання! Ти виграв(ла) `{bet_won}` кг \n🎯 Тепер у тебе: `{new_balance}` кг"
-            else:
-                new_balance = balance_after_bet - bet + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n🎯 Тепер у тебе: `{new_balance}` кг"
+            else:
+                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n🎯 Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
 # /basketball
 async def basketball(message: types.Message):
+    chat_id = message.chat.id
+
+    if not await check_settings(chat_id, 'minigame'):
+        return
+
     if await check_type(message):
         return
 
@@ -711,7 +729,7 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(
-                f"🎯 {mention}, зроби свій вибір:\n\n"
+                f"🎯 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
                 f"💰 Можливий виграш: `{potential_win} кг`", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -768,19 +786,23 @@ async def handle_basketball_buttons(callback_query: types.CallbackQuery):
                 bet_won = math.ceil(bet * 1.5)
                 new_balance = balance_after_bet + bet_won + bet
                 win_message = f"🏆 {mention}, точне попадання! Ти виграв(ла) `{bet_won}` кг \n🏀 Тепер у тебе: `{new_balance}` кг"
-            else:
-                new_balance = balance_after_bet - bet + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n🏀 Тепер у тебе: `{new_balance}` кг"
+            else:
+                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n🏀 Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
 # /football
 async def football(message: types.Message):
+    chat_id = message.chat.id
+
+    if not await check_settings(chat_id, 'minigame'):
+        return
+
     if await check_type(message):
         return
 
@@ -874,7 +896,7 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(
-                f"⚽️ {mention}, зроби свій вибір:\n\n"
+                f"⚽️ {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
                 f"💰 Можливий виграш: `{potential_win} кг`", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -931,19 +953,23 @@ async def handle_football_buttons(callback_query: types.CallbackQuery):
                 bet_won = math.ceil(bet * 1.5)
                 new_balance = balance_after_bet + bet_won + bet
                 win_message = f"🏆 {mention}, точне попадання! Ти виграв(ла) `{bet_won}` кг \n⚽️ Тепер у тебе: `{new_balance}` кг"
-            else:
-                new_balance = balance_after_bet - bet + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n⚽️ Тепер у тебе: `{new_balance}` кг"
+            else:
+                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n⚽️ Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
 # /bowling
 async def bowling(message: types.Message):
+    chat_id = message.chat.id
+
+    if not await check_settings(chat_id, 'minigame'):
+        return
+
     if await check_type(message):
         return
 
@@ -1027,7 +1053,7 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
             await db.commit()
 
             await cache.set(f"betbowling_{user_id}_{chat_id}", str(bet))
-            potential_win = math.ceil(bet * 1.5)
+            potential_win = math.ceil(bet * 2)
 
             keyboard = InlineKeyboardMarkup()
             button_go = InlineKeyboardButton("Грати", callback_data=f"gobowling_{bet}")
@@ -1037,7 +1063,7 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(
-                f"🎳 {mention}, зроби свій вибір:\n\n"
+                f"🎳 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
                 f"💰 Можливий виграш: `{potential_win} кг`", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
 
@@ -1094,19 +1120,23 @@ async def handle_bowling_buttons(callback_query: types.CallbackQuery):
                 bet_won = math.ceil(bet * 2)
                 new_balance = balance_after_bet + bet_won + bet
                 win_message = f"🏆 {mention}, точне попадання! Ти виграв(ла) `{bet_won}` кг \n🎳 Тепер у тебе: `{new_balance}` кг"
-            else:
-                new_balance = balance_after_bet - bet + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n🎳 Тепер у тебе: `{new_balance}` кг"
+            else:
+                win_message = f"😔 {mention}, ти не влучив(ла). Втрата: `{bet}` кг \n🎳 Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
 # /casino
 async def casino(message: types.Message):
+    chat_id = message.chat.id
+    
+    if not await check_settings(chat_id, 'minigame'):
+        return
+        
     if await check_type(message):
         return
 
@@ -1141,7 +1171,7 @@ async def casino(message: types.Message):
         bet_buttons = [InlineKeyboardButton(f"{bet} кг", callback_data=f"betcasino_{bet}") for bet in [1, 5, 10, 20, 30, 40, 50, 100]]
         bet_buttons.append(InlineKeyboardButton("❌ Вийти", callback_data="cancelcasino"))
         keyboard.add(*bet_buttons)
-        casino_message = await bot.send_message(chat_id, f"🎰 {mention}, зіграй у боулінг\nВибери ставку\n\n🏷️ У тебе: `{balance}` кг\n", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+        casino_message = await bot.send_message(chat_id, f"🎰 {mention}, зіграй у казіно\nВибери ставку\n\n🏷️ У тебе: `{balance}` кг\n", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
         await cache.set(f"casino_player_{casino_message.message_id}", message.from_user.id)
         await asyncio.sleep(DELETE)
         try:
@@ -1190,7 +1220,8 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             await db.commit()
 
             await cache.set(f"betcasino_{user_id}_{chat_id}", str(bet))
-            potential_win = math.ceil(bet * 1.5)
+            potential_win = math.ceil(bet * 2)
+            potential_win2 = math.ceil(bet * 10)
 
             keyboard = InlineKeyboardMarkup()
             button_go = InlineKeyboardButton("Грати", callback_data=f"gocasino_{bet}")
@@ -1200,9 +1231,9 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             mention = ('[' + callback_query.from_user.username + ']' + '(https://t.me/' + callback_query.from_user.username + ')') if callback_query.from_user.username else callback_query.from_user.first_name
             await bot.answer_callback_query(callback_query.id, "✅")
             await bot.edit_message_text(
-                f"🎰 {mention}, зроби свій вибір:\n\n"
+                f"🎰 {mention}, готовий(а)?\n\n"
                 f"🏷️ Твоя ставка: `{bet} кг`\n"
-                f"💰 Можливий виграш: `{potential_win} кг`", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+                f"💰 Можливий виграш: `{potential_win} кг `\n🎰 Або `{potential_win2} кг якщо джекпот`", chat_id=chat_id, message_id=callback_query.message.message_id, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
 
         elif callback_query.data.startswith('cancelcasino_cell'):
             bet = await cache.get(f"betcasino_{user_id}_{chat_id}")
@@ -1253,17 +1284,17 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             bet = int(bet)
             
             if result_casino == 64:
-                bet_won = math.ceil(bet * 5)
+                bet_won = math.ceil(bet * 10)
                 new_balance = balance_after_bet + bet_won + bet
                 win_message = f"🏆 {mention}, джекпот! Ти виграв(ла) `{bet_won}` кг \n🎰 Тепер у тебе: `{new_balance}` кг"
+                await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
             elif result_casino in [1, 22, 43]:
                 bet_won = math.ceil(bet * 2)
-                new_balance = balance_after_bet + bet_won
+                new_balance = balance_after_bet + bet_won + bet
                 win_message = f"🎉 {mention}, вітаю! Ти виграв(ла) `{bet_won}` кг \n🎰 Тепер у тебе: `{new_balance}` кг"
-            else:
-                new_balance = balance_after_bet - bet + bet
                 await db.execute("UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?", (new_balance, user_id, chat_id))
-                win_message = f"😔 {mention}, ти не виграв(ла). Втрата: `{bet}` кг \n🎰 Тепер у тебе: `{new_balance}` кг"
+            else:
+                win_message = f"😔 {mention}, ти програв(ла). Втрата: `{bet}` кг \n🎰 Тепер у тебе: `{balance_after_bet}` кг"
 
             await db.commit()
             await asyncio.sleep(3)
@@ -1271,15 +1302,8 @@ async def handle_casino_buttons(callback_query: types.CallbackQuery):
             await bot.edit_message_text(win_message, chat_id=chat_id, message_id=callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
 
-async def test(message: types.Message):
-    chat_id = message.chat.id
-    football_message = await bot.send_dice(chat_id=chat_id, emoji='⚽️')
-    result_football = football_message.dice.value
-    football_message = await bot.send_message(chat_id, f"{result_football}")
-
 # Ініціалізація обробника
 def games_handlers(dp, bot):
-    dp.register_message_handler(test, commands=['test'])
     dp.register_message_handler(killru, commands=['killru'])
     dp.register_message_handler(game, commands=['game'])
     dp.register_callback_query_handler(handle_game_buttons, lambda c: c.data.startswith('bet_') or c.data.startswith('cell_') or c.data == 'cancel' or c.data == 'cancel_cell')

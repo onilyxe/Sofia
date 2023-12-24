@@ -5,8 +5,10 @@ import aiogram
 import logging
 
 from aiogram.utils.executor import start_polling
-from datetime import datetime, time
 from aiogram import Bot, Dispatcher
+from datetime import datetime, time
+
+
 
 
 # Імпортуємо інші частини коду

@@ -5,7 +5,7 @@ import asyncio
 import aiogram
 import logging
 from aiogram.utils.exceptions import MessageCantBeDeleted, BotKicked, ChatNotFound, MessageToDeleteNotFound, Unauthorized
-from src.functions import remove_chat, admin, reply_and_delete, send_and_delete
+from src.functions import remove_chat, admin, reply_and_delete, send_and_delete, supportusers
 from aiogram import Bot, types
 
 
@@ -203,8 +203,51 @@ async def edit(message: types.Message):
         await reply_and_delete(message, "⚠️ Занадто велике значення. Спробуй менше число")
 
 
+# /add
+async def add(message: types.Message):
+    if not await supportusers(message):
+        return
+    try:
+        parts = message.text.split()
+
+        if len(parts) != 4:
+            raise ValueError("⚙️ Неправильний формат. Використовуй `/add CHAT_ID USER_ID value`")
+
+        chat_id = int(parts[1])
+        user_id = int(parts[2])
+        value = int(parts[3])
+
+        async with aiosqlite.connect('src/database.db') as db:
+            async with db.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) as cursor:
+                current_value = await cursor.fetchone()
+
+            if current_value is None:
+                current_value = 0
+            else:
+                current_value = current_value[0]
+
+            updated_value = current_value + value
+
+            if updated_value < 0:
+                raise ValueError("⚠️ Результат не може бути від'ємним числом")
+
+            if current_value is None:
+                await db.execute('INSERT INTO user_values (user_id, chat_id, value) VALUES (?, ?, ?)', (user_id, chat_id, updated_value))
+            else:
+                await db.execute('UPDATE user_values SET value = ? WHERE user_id = ? AND chat_id = ?', (updated_value, user_id, chat_id))
+
+            await db.commit()
+            await send_and_delete(message, chat_id, f"🆒 Значення {user_id} було змінено на `{updated_value}` кг")
+
+    except ValueError as e:
+        await reply_and_delete(message, str(e))
+    except OverflowError:
+        await reply_and_delete(message, "⚠️ Занадто велике значення. Спробуй менше число")
+
+
 # Ініціалізація обробника
 def admins_handlers(dp, bot):
     dp.register_message_handler(chatlist, commands=['chatlist'])
     dp.register_message_handler(message, commands=['message'])
     dp.register_message_handler(edit, commands=['edit'])
+    dp.register_message_handler(add, commands=['add'])

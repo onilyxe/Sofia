@@ -7,7 +7,7 @@ import logging
 import asyncio
 import psutil
 
-from src.functions import reply_and_delete, show_globaltop, show_top, check_type, edit_and_delete
+from src.functions import reply_and_delete, show_globaltop, show_top, check_type, edit_and_delete, check_settings
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from datetime import datetime, timedelta
 from aiogram import Bot, types
@@ -97,7 +97,7 @@ async def about(message: types.Message):
         f"📡 Sofia `{VERSION}`\n\n"
         f"[News Channel](t.me/SofiaBotRol)\n"
         f"[Source](https://github.com/onilyxe/Sofia)\n\n"
-        f"Made [onilyxe](https://onilyxe). Idea [den](https://t.me/itsokt0cry)")
+        f"Made [onilyxe](https://t.me/onilyxe). Idea [den](https://t.me/itsokt0cry)")
 
     await reply_and_delete(message, about_text)
 
@@ -115,11 +115,6 @@ async def top10(message: types.Message):
 # /top
 async def top(message: types.Message):
     await show_top(message, limit=101, title='📊 Топ русофобій чату')
-
-
-# /shop
-async def shop(message: types.Message):
-    await reply_and_delete(message, "🫡 Привіт. Зроби добру справу, задонать адміну на плитоноску, і отримав кг! Детальніше: @OnilyxeBot")
 
 
 # /my
@@ -144,6 +139,104 @@ async def my(message: types.Message):
     else:
         rusophobia = result[0]
         await reply_and_delete(message, f"😡 {mention}, твоя русофобія: `{rusophobia}` кг")
+
+
+# /settings
+async def settings(message: types.Message):
+    chat_id = message.chat.id
+
+    user = await bot.get_chat_member(chat_id, message.from_user.id)
+    if not user.status in ['administrator', 'creator']:
+        await message.reply("❌ Тільки адміністратори чату можуть змінювати налаштування")
+        return
+
+    async with aiosqlite.connect('src/database.db') as db:
+        cursor = await db.execute('SELECT minigame, give FROM chats WHERE chat_id = ?', (chat_id,))
+        settings = await cursor.fetchone()
+        minigame_enabled = True if settings is None or settings[0] is None else settings[0]
+        give_enabled = True if settings is None or settings[1] is None else settings[1]
+
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton(f"Міні-ігри: {'✅' if minigame_enabled else '❌'}", callback_data=f"toggle_minigame_{chat_id}"))
+    keyboard.add(InlineKeyboardButton(f"Передача кг: {'✅' if give_enabled else '❌'}", callback_data=f"toggle_give_{chat_id}"))
+
+    await message.reply("⚙️ Налаштування чату:", reply_markup=keyboard)
+
+
+async def handle_settings_callback(callback_query: types.CallbackQuery):
+    chat_id = int(callback_query.data.split('_')[2])
+    setting = callback_query.data.split('_')[1]
+
+    if setting not in ['minigame', 'give']:
+        await callback_query.answer("❌ Невідома настройка", show_alert=True)
+        return
+
+    user = await bot.get_chat_member(chat_id, callback_query.from_user.id)
+    if not user.status in ['administrator', 'creator']:
+        await callback_query.answer("❌ Тільки адміністратори можуть змінювати налаштування.", show_alert=True)
+        return
+
+    async with aiosqlite.connect('src/database.db') as db:
+        await db.execute(f'UPDATE chats SET {setting} = NOT COALESCE({setting}, 1) WHERE chat_id = ?', (chat_id,))
+        await db.commit()
+
+        cursor = await db.execute('SELECT minigame, give FROM chats WHERE chat_id = ?', (chat_id,))
+        updated_settings = await cursor.fetchone()
+        minigame_enabled = True if updated_settings[0] is None else updated_settings[0]
+        give_enabled = True if updated_settings[1] is None else updated_settings[1]
+
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton(f"Міні-ігри: {'✅' if minigame_enabled else '❌'}", callback_data=f"toggle_minigame_{chat_id}"))
+    keyboard.add(InlineKeyboardButton(f"Передача кг: {'✅' if give_enabled else '❌'}", callback_data=f"toggle_give_{chat_id}"))
+
+    await bot.edit_message_text(chat_id=chat_id, message_id=callback_query.message.message_id, text="⚙️ Налаштування чату:", reply_markup=keyboard)
+    await callback_query.answer("🆒 Оновлено", show_alert=True)
+
+
+# /shop
+async def shop(message: types.Message):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    main_shop_button = InlineKeyboardButton(text="❔ Як купити кг?", callback_data="main_shop")
+    main_shop_button2 = InlineKeyboardButton(text="💲 Яка ціна?", callback_data="shop_two")
+    main_shop_button3 = InlineKeyboardButton(text="🛸 Куди підуть гроші?", callback_data="shop_tree")
+    keyboard.add(main_shop_button)
+    keyboard.add(main_shop_button2)
+    keyboard.add(main_shop_button3)
+
+    text = await message.reply("💳 Хочеш поповнити свою русофобію і обігнати суперників?\nТут ти зможеш дізнатися як купити кг", reply_markup=keyboard)
+    await asyncio.sleep(DELETE)
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=text.message_id)
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except (MessageCantBeDeleted, MessageToDeleteNotFound):
+        pass
+    return
+
+
+async def shop_selected(callback_query: types.CallbackQuery):
+    shop_text = {
+        "main_shop": "Посилання на банку: [send.monobank.ua](https://send.monobank.ua/jar/5T9BXGpL83)\nРобите донат на потрібну вам суму, і відправляєте скріншот оплати в @OnilyxeBot\nГоловна умова, вказати ID чату де ви хочете поповнення балансу. Якщо ти не знаєш що це таке, то просто напиши назву свого чату\nПісля чекай поки адміни оброблять твій запит",
+        "shop_two": "Курс гривні до русофобії 1:10\n1 грн = 10 кг\n100 кг - 10 грн\n1000 кг - 100 грн\nБеремо потрібну кількість русофобії і ділимо на 10\n500 кг / 10 = 50 грн",
+        "shop_tree": "Розробник бота зараз служить в артилерії. Їбашить кацапів щодня (Його канал [5011](https://ua5011))\nЗібрані гроші підуть на поновлення екіпірування"
+    }
+    selected_shop = shop_text[callback_query.data]    
+    keyboard = InlineKeyboardMarkup()
+    back_button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_to_shop")
+    keyboard.add(back_button)
+    await bot.answer_callback_query(callback_query.id, "✅")
+    await callback_query.message.edit_text(f"{selected_shop}", reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+
+
+async def back_to_shop(callback_query: types.CallbackQuery):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    main_shop_button = InlineKeyboardButton(text="❔ Як купити кг?", callback_data="main_shop")
+    main_shop_button2 = InlineKeyboardButton(text="💲 Яка ціна?", callback_data="shop_two")
+    main_shop_button3 = InlineKeyboardButton(text="🛸 Куди підуть гроші?", callback_data="shop_tree")
+    keyboard.add(main_shop_button)
+    keyboard.add(main_shop_button2)
+    keyboard.add(main_shop_button3)
+    await bot.answer_callback_query(callback_query.id, "✅")
+    await callback_query.message.edit_text("💳 Хочеш поповнити свою русофобію і обігнати суперників?\nТут ти зможеш дізнатися як купити кг", reply_markup=keyboard)
 
 
 # /help
@@ -178,9 +271,9 @@ async def game_selected(callback_query: types.CallbackQuery):
         "game_dice": "🎲 Гра у кості. Суть гри вгадати яке випаде число, парне чи непарне\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /dice",
         "game_darts": "🎯 Гра в дартс. Суть гри потрапити в центр\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /darts",
         "game_basketball": "🏀 Гра в баскетбол. Суть гри потрапити в кошик м'ячем\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /basketball",
-        "game_football": "⚽️ Гра у футбол. Суть гри потрапити м'ячем у ворота\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /football",
+        "game_football": "⚽️ Гра у футбол. Суть гри потрапити м'ячем у ворота\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 1.5. Було 50 кг. При виграші зі ставкою 10, отримуєш 15. Буде 65\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /football",
         "game_bowling": "🎳 Гра в боулінг. Суть гри вибити страйк\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /bowling",
-        "game_casino": "🎰 Гра в казино. Суть гри вибити джекпот\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70. Якщо вибив джекпот, то ставка множиться на 5\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /casino",
+        "game_casino": "🎰 Гра в казино. Суть гри вибити джекпот\n⏱️ Можна зіграти раз на годину\n🔀 Приз: ставка множиться на 2. Було 50 кг. При виграші зі ставкою 10, отримуєш 20. Буде 70. Якщо вибити джекпот (777), то ставка множиться на 10\n💰 Ставки: 1, 5, 10, 20, 30, 40, 50, 100\n🚀 Команда гри: /casino",
    }
     selected_game = game_emojis[callback_query.data]    
     keyboard = InlineKeyboardMarkup()
@@ -253,7 +346,7 @@ async def leave_inline(callback_query: CallbackQuery):
         async with aiosqlite.connect('src/database.db') as db:
             await db.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
             if TEST == 'True':
-                await db.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL, dice = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+                await db.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL, dice = NULL, darts = NULL, basketball = NULL, football = NULL, bowling = NULL, casino = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
             await db.commit()
 
         await bot.answer_callback_query(callback_query.id, "✅ Успішно")
@@ -270,6 +363,11 @@ async def leave_inline(callback_query: CallbackQuery):
 
 # /give
 async def give(message: types.Message):
+    chat_id = message.chat.id
+
+    if not await check_settings(chat_id, 'give'):
+        return
+
     if await check_type(message):
         return
 
@@ -417,7 +515,11 @@ def messages_handlers(dp, bot):
     dp.register_message_handler(globaltop, commands=['globaltop'])
     dp.register_message_handler(top10, commands=['top10'])
     dp.register_message_handler(top, commands=['top'])
+    dp.register_message_handler(settings, commands=['settings'])
+    dp.register_callback_query_handler(handle_settings_callback, lambda c: c.data.startswith('toggle_'))
     dp.register_message_handler(shop, commands=['shop'])
+    dp.register_callback_query_handler(shop_selected, lambda c: c.data == 'main_shop' or c.data.startswith('shop_'))
+    dp.register_callback_query_handler(back_to_shop, lambda c: c.data == 'back_to_shop')
     dp.register_message_handler(my, commands=['my'])
     dp.register_message_handler(help, commands=['help'])
     dp.register_callback_query_handler(game_selected, lambda c: c.data == 'main_game' or c.data.startswith('game_'))
