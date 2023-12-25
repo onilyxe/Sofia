@@ -23,7 +23,7 @@ try:
     RANDOMGAMES = float(config['SETTINGS']['RANDOMGAMES'])
     DELETE = int(config['SETTINGS']['DELETE'])
 except (FileNotFoundError, KeyError) as e:
-    logging.error(f"Помилка завантаження конфігураційного файлу в sofia.py: {e}")
+    logging.error(f"Помилка завантаження конфігураційного файлу в games.py: {e}")
     exit()
 
 # Ініціалізація бота та кеш-пам'яті
