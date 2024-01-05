@@ -9,6 +9,6 @@ class ChatRepository:
         data = await self.connection.execute("SELECT * FROM chats WHERE chat_id = ?", (chat_id,))
         return await data.fetchone()
 
-    async def add_chat(self, user_id: int) -> None:
-        await self.connection.execute_insert("INSERT OR IGNORE INTO chats (user_id) VALUES (?)", (user_id))
+    async def add_chat(self, chat_id: int) -> None:
+        await self.connection.execute_insert("INSERT OR IGNORE INTO chats (chat_id) VALUES (?)", (chat_id,))
         await self.connection.commit()
