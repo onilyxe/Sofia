@@ -56,3 +56,6 @@ venv.bak/
 
 # vscode
 .vscode/
+
+# idea
+.idea/

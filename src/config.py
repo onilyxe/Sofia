@@ -30,6 +30,7 @@ class Config(metaclass=SingletonMeta):
             self.SKIPUPDATES = self._config.getboolean("SETTINGS", "SKIPUPDATES")
             self.ADMIN = self._config.getint("ID", "ADMIN")
             self.TEST = self._config.getboolean("SETTINGS", "TEST")
+            self.DBFILE = self._config.get("SETTINGS", "DBFILE")
             self.VERSION = self._config.get("SETTINGS", "VERSION")
             self.DELETE = self._config.getint("SETTINGS", "DELETE")
             self.BAN = self._config.getint("SPAM", "BAN")
@@ -64,3 +65,6 @@ class Config(metaclass=SingletonMeta):
         finally:
             if not self.__ok:
                 exit()
+
+
+config = Config()
