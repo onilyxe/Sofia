@@ -1,40 +1,35 @@
-import configparser
-import aiogram
-import logging
+import asyncio
 
-from aiogram.utils.executor import start_polling
+import aiogram
 from aiogram import Bot, Dispatcher
 
-from src.middlewares import Logging, Database, RateLimit
-from src.functions import startup, shutdown
-from src.messages import messages_handlers
-from src.admins import admins_handlers
-from src.games import games_handlers
-from src.logger import logger
+from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterMiddleware
+from src.config import Config
+from src.database import Database
+import src.logger
 
 # Імпортуємо конфігураційний файл
-config = configparser.ConfigParser()
-try:
-    config.read('config.ini')
-    TOKEN = config['TOKEN']['BOT']
-    SKIPUPDATES = config['SETTINGS']['SKIPUPDATES'] == 'True'
-except (FileNotFoundError, KeyError) as e:
-    logging.error(f"Помилка завантаження конфігураційного файлу в sofia.py: {e}")
-    exit()
+config = Config()
 
 # Ініціалізація бота та диспетчера
-bot = Bot(token=TOKEN)
-dp = Dispatcher(bot)
+bot = Bot(config.TOKEN, parse_mode=aiogram.enums.ParseMode.MARKDOWN_V2)
+dp = Dispatcher()
+dp.message.outer_middleware(DatabaseMiddleware())
+dp.message.outer_middleware(LoggingMiddleware())
+dp.message.outer_middleware(RegisterMiddleware())
 
-# Ініціалізація проміжного ПЗ
-dp.middleware.setup(Logging())
-dp.middleware.setup(Database())
-dp.middleware.setup(RateLimit())
 
-# Ініціалізація обробників
-games_handlers(dp, bot)
-admins_handlers(dp, bot)
-messages_handlers(dp, bot)
+@dp.message()
+async def echo(message: aiogram.types.Message, bot: Bot, db: Database):
+    if message.text == "ping":
+        await message.answer(f'[you](tg://user?id={message.from_user.id})\n', disable_notification=True)
 
-if __name__ == '__main__':
-    start_polling(dp, skip_updates=SKIPUPDATES, on_startup=startup, on_shutdown=shutdown)
+
+async def main() -> None:
+    if config.SKIPUPDATES:
+        await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
