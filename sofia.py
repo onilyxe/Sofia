@@ -1,12 +1,16 @@
 import asyncio
 
 import aiogram
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
+from aiogram.enums import ChatType
+from aiogram.filters import Command
 
-from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterMiddleware
+from src import CooldownFilter
 from src.config import Config
 from src.database import Database
-import src.logger
+from src.logger import init_logger
+from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterChatMiddleware, RegisterUserMiddleware
+from src.types import Games
 
 # Імпортуємо конфігураційний файл
 config = Config()
@@ -16,10 +20,11 @@ bot = Bot(config.TOKEN, parse_mode=aiogram.enums.ParseMode.MARKDOWN_V2)
 dp = Dispatcher()
 dp.message.outer_middleware(DatabaseMiddleware())
 dp.message.outer_middleware(LoggingMiddleware())
-dp.message.outer_middleware(RegisterMiddleware())
+dp.message.outer_middleware(RegisterChatMiddleware())
+dp.message.middleware(RegisterUserMiddleware())
 
 
-@dp.message()
+@dp.message(F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}), Command(Games.KILLRU), CooldownFilter(Games.KILLRU))
 async def echo(message: aiogram.types.Message, bot: Bot, db: Database):
     if message.text == "ping":
         await message.answer(f'[you](tg://user?id={message.from_user.id})\n', disable_notification=True)
@@ -32,4 +37,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    init_logger()
     asyncio.run(main())

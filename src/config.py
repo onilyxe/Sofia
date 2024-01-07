@@ -1,5 +1,6 @@
 import configparser
 import logging
+from datetime import datetime
 
 
 class SingletonMeta(type):
@@ -38,6 +39,7 @@ class Config(metaclass=SingletonMeta):
             self.MESSAGES = self._config.getint("SPAM", "MESSAGES")
             self.RANDOMGAMES = self._config.getfloat("SETTINGS", "RANDOMGAMES")
             self.ALIASES = {k: int(v) for k, v in self._config["ALIASES"].items()}
+            self.LOCAlTIMEZONE = datetime.now().astimezone().tzinfo
 
         except configparser.NoSectionError as e:
             logging.error(
