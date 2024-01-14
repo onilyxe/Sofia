@@ -4,28 +4,22 @@ import datetime
 import asyncio
 import aiogram
 
-from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted, BadRequest
 from aiogram import Bot, Dispatcher, types
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# Імпортуємо конфігураційний файл
-config = configparser.ConfigParser()
-try:
-    config.read('config.ini')
-    TOKEN = config['TOKEN']['BOT']
-    ADMIN = int(config['ID']['ADMIN'])
-    support_str = config['ID']['SUPPORT']
-    CHANNEL= int(config['ID']['CHANNEL'])
-    TEST = (config['SETTINGS']['TEST'])
-    STATUS = (config['SETTINGS']['STATUS'])
-    DELETE = int(config['SETTINGS']['DELETE'])
-except (FileNotFoundError, KeyError) as e:
-    logging.error(f"Помилка завантаження конфігураційного файлу в functions.py: {e}")
-    exit()
 
-# Ініціалізація бота і обробника
-bot = Bot(token=TOKEN)
-dp = Dispatcher(bot)
+# Отримання часу, який залишився до наступного дня
+def get_time_until_midnight(timestamp: int) -> str:
+    dt = datetime.fromtimestamp(timestamp)
+    midnight = datetime(dt.year, dt.month, dt.day) + timedelta(days=1)
+    remaining_time = midnight - dt
+    hours, remainder = divmod(remaining_time.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    remaining_time_str = f"{hours:02}:{minutes:02}:{seconds:02}"
+    return remaining_time_str
+
+
+# TODO: Refactor all functions and remove unused
 
 # Підключення до бази даних SQLite і створення таблиць
 async def setup_database():
