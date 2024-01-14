@@ -17,7 +17,8 @@ class RegisterChatMiddleware(BaseMiddleware):
 
         chat = await db.chat.get_chat(event.chat.id)
         if event.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP] and not chat:
-            await db.chat.add_chat(event.chat.id)
+            chat = await db.chat.add_chat(event.chat.id)
+        data["chat"] = chat
         return await handler(event, data)
 
 
@@ -31,13 +32,20 @@ class RegisterUserMiddleware(BaseMiddleware):
         if not event.from_user:
             return await handler(event, data)
 
-        if not await db.user.get_user(event.from_user.id):
-            await db.user.add_user(event.from_user.id, event.from_user.username)
+        user = await db.user.get_user(event.from_user.id)
+        if not user:
+            user = await db.user.add_user(event.from_user.id, event.from_user.username)
             await event.reply(f"🥳 {event.from_user.mention_markdown()}, вітаю\\! Ти тепер граєш у русофобію")
+
+        data["user"] = user
 
         if event.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
             return await handler(event, data)
-        if not await db.chat_user.get_chat_user(event.chat.id, event.from_user.id):
-            await db.chat_user.add_chat_user(event.chat.id, event.from_user.id)
+
+        chat_user = await db.chat_user.get_chat_user(event.chat.id, event.from_user.id)
+        if not chat_user:
+            chat_user = await db.chat_user.add_chat_user(event.chat.id, event.from_user.id)
             await db.cooldown.add_user_cooldown(event.chat.id, event.from_user.id)
+        data["chat_user"] = chat_user
+
         return await handler(event, data)

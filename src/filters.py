@@ -18,6 +18,6 @@ class CooldownFilter(BaseFilter):
         cooldown = await db.cooldown.get_user_cooldown(message.chat.id, message.from_user.id, self.game_type)
         if cooldown is None:
             return True
-        last_game_date: date = datetime.fromtimestamp(cooldown[0]).date()
-        message_date = message.date.astimezone(config.LOCAlTIMEZONE).date()
+        last_game_date: date = date.fromtimestamp(cooldown[0])
+        message_date = date.fromtimestamp(message.date.timestamp())
         return last_game_date < message_date

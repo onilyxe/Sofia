@@ -1,4 +1,6 @@
-from aiosqlite import Connection
+from sqlite3 import Row
+
+from aiosqlite import Connection, Cursor
 
 
 class ChatRepository:
@@ -6,9 +8,10 @@ class ChatRepository:
         self.connection = connection
 
     async def get_chat(self, chat_id: int) -> list | None:
-        data = await self.connection.execute("SELECT * FROM chats WHERE chat_id = ?", (chat_id,))
+        data: Cursor = await self.connection.execute("SELECT * FROM chats WHERE chat_id = ?", (chat_id,))
         return await data.fetchone()
 
-    async def add_chat(self, chat_id: int) -> None:
-        await self.connection.execute_insert("INSERT OR IGNORE INTO chats (chat_id) VALUES (?)", (chat_id,))
+    async def add_chat(self, chat_id: int) -> Row | None:
+        data = await self.connection.execute_insert("INSERT OR IGNORE INTO chats (chat_id) VALUES (?)", (chat_id,))
         await self.connection.commit()
+        return data
