@@ -9,7 +9,7 @@ from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.dispatcher.handler import CancelHandler
 from datetime import datetime, timedelta
 from aiogram import Bot, types
-
+# TODO: Refactor all middlewares
 # Імпортуємо конфігураційний файл
 config = configparser.ConfigParser()
 try:
@@ -32,36 +32,6 @@ banlist = {}
 BANN = timedelta(minutes=BAN)
 SPEEDD = timedelta(seconds=SPEED)
 
-# Логування кожного повідомлення
-class Logging(BaseMiddleware):
-    CONTENT_TYPES = {
-        "text": lambda m: m.text,
-        "sticker": lambda m: "sticker",
-        "audio": lambda m: "audio",
-        "photo": lambda m: "photo",
-        "video": lambda m: "video",}
-
-    async def on_pre_process_message(self, message: types.Message, data: dict):
-        user = getattr(message.from_user, "username", None) or getattr(message.from_user, "first_name", "Unknown")
-        chat = getattr(message.chat, "title", None) or f"ID {message.chat.id}"
-        content_type = next((self.CONTENT_TYPES[type](message) for type in self.CONTENT_TYPES if getattr(message, type, None)), "other_content")
-        logging.info(f"{chat}: {user} - {content_type}")
-
-# Запис у базу даних кількість запитів до бота для команди /ping
-class Database(BaseMiddleware):
-    async def on_process_message(self, message: types.Message, data: dict):
-        if message.text and message.text.startswith('/'):
-            async with aiosqlite.connect('src/database.db') as db:
-                nowtime = datetime.now()
-                cursor = await db.execute('SELECT id, count FROM queries WHERE datetime >= ? AND datetime < ? ORDER BY datetime DESC LIMIT 1', (nowtime.replace(hour=0, minute=0, second=0, microsecond=0), nowtime.replace(hour=23, minute=59, second=59, microsecond=999999)))
-
-                row = await cursor.fetchone()
-                if row:
-                    await db.execute('UPDATE queries SET count = count + 1 WHERE id = ?', (row[0],))
-                else:
-                    await db.execute('INSERT INTO queries (datetime, count) VALUES (?, 1)', (nowtime,))
-
-                await db.commit()
 
 # Захист від спаму
 class RateLimit(BaseMiddleware):

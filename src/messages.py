@@ -29,10 +29,6 @@ except (FileNotFoundError, KeyError) as e:
 bot = Bot(token=TOKEN)
 cache = aiocache.Cache()
 
-# /start
-async def start(message: types.Message):
-    await reply_and_delete(message, "🫡 Привіт. Я бот для гри в русофобію. Додавай мене в чат і розважайся. Щоб дізнатися як мною користуватися, вивчай /help")
-
 # /ping
 bot_start_time = datetime.now()
 
@@ -84,16 +80,6 @@ async def ping(message: types.Message):
 
     await reply_and_delete(message, ping_text)
 
-# /about
-async def about(message: types.Message):
-    about_text = (
-        f"📡 Sofia `{VERSION}`\n\n"
-        f"[News Channel](t.me/SofiaBotRol)\n"
-        f"[Source](https://github.com/onilyxe/Sofia)\n\n"
-        f"Made [onilyxe](https://t.me/onilyxe). Idea [den](https://t.me/itsokt0cry)")
-
-    await reply_and_delete(message, about_text)
-
 # /globaltop
 async def globaltop(message: types.Message):
     await show_globaltop(message, limit=101, title='🌏 Глобальний топ русофобій')
@@ -109,29 +95,6 @@ async def top(message: types.Message):
 # /top10
 async def top10(message: types.Message):
     await show_top(message, limit=10, title='📊 Топ 10 русофобій чату')
-
-# /my
-async def my(message: types.Message):
-    if await check_type(message):
-        return
-
-    user_id = message.from_user.id
-    chat_id = message.chat.id
-
-    async with aiosqlite.connect('src/database.db') as db:
-        cursor = await db.execute('SELECT value FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-        result = await cursor.fetchone()
-
-    if message.from_user.username:
-        mention = f"[{message.from_user.username}](https://t.me/{message.from_user.username})"
-    else:
-        mention = message.from_user.first_name
-
-    if result is None:
-        await reply_and_delete(message, f'😠 {mention}, у тебе немає русофобії, губися')
-    else:
-        rusophobia = result[0]
-        await reply_and_delete(message, f"😡 {mention}, твоя русофобія: `{rusophobia}` кг")
 
 # /settings
 async def settings(message: types.Message):
@@ -339,63 +302,6 @@ async def back_to_games(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id, "ℹ️ Гаразд")
     await callback_query.message.edit_text("⚙️ Тут ти зможеш дізнатися\nпро мене все", reply_markup=keyboard)
 
-# /leave
-async def leave(message: types.Message):
-    if await check_type(message):
-        return
-
-    inline = InlineKeyboardMarkup(row_width=2)
-    inline.add(InlineKeyboardButton("✅ Так", callback_data="confirm_leave"), InlineKeyboardButton("❌ Ні", callback_data="cancel_leave"))
-    
-    user_id = message.from_user.id
-    chat_id = message.chat.id
-    mention = f"[{message.from_user.username}](https://t.me/{message.from_user.username})" if message.from_user.username else message.from_user.first_name
-
-    async with aiosqlite.connect('src/database.db') as db:
-        async with db.execute('SELECT * FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id)) as cursor:
-            user_exists = await cursor.fetchone()
-
-    if not user_exists:
-        await reply_and_delete(message, f"😯 {mention}, у тебе і так немає русофобії, губися")
-
-    else:
-        msg = await bot.send_message(chat_id, f"😡 {mention}, ти впевнений, що хочеш проїбати свою русофобію? Твої дані буде видалено з бази даних. Цю дію не можна буде скасувати", reply_markup=inline, parse_mode="Markdown", disable_web_page_preview=True)
-        await cache.set(f"leavers_{msg.message_id}", user_id)
-        await asyncio.sleep(DELETE)
-        try:
-            await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
-        except (MessageCantBeDeleted, MessageToDeleteNotFound):
-            pass
-
-async def leave_inline(callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    chat_id = callback_query.message.chat.id
-    
-    leaver_id = await cache.get(f"leavers_{callback_query.message.message_id}")
-
-    if leaver_id != user_id:
-        await bot.answer_callback_query(callback_query.id, "❌ Ці кнопочки не для тебе!", show_alert=True)
-        return
-
-    mention = f"[{callback_query.from_user.username}](https://t.me/{callback_query.from_user.username})" if callback_query.from_user.username else callback_query.from_user.first_name
-
-    if callback_query.data == 'confirm_leave':
-        async with aiosqlite.connect('src/database.db') as db:
-            await db.execute('DELETE FROM user_values WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-            if TEST == 'True':
-                await db.execute('UPDATE cooldowns SET killru = NULL, give = NULL, game = NULL, dice = NULL, darts = NULL, basketball = NULL, football = NULL, bowling = NULL, casino = NULL WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
-            await db.commit()
-
-        await bot.answer_callback_query(callback_query.id, "👹 Ох братику, даремно ти це зробив...")
-        await bot.edit_message_text(f"🤬 {mention}, ти покинув гру, і тебе було видалено з бази даних", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
-    else:
-        await bot.answer_callback_query(callback_query.id, "ℹ️ Cкасовуємо..")
-        await bot.edit_message_text(f"🫡 {mention} красунчик, ти залишився у грі", chat_id, callback_query.message.message_id, parse_mode="Markdown", disable_web_page_preview=True)
-        await asyncio.sleep(DELETE)
-        try:
-            await bot.delete_message(chat_id=chat_id, message_id=callback_query.message.message_id)
-        except (MessageCantBeDeleted, MessageToDeleteNotFound):
-            pass  
 
 # /give
 async def give(message: types.Message):
