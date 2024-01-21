@@ -12,9 +12,10 @@ class CooldownRepository:
     async def get_user_cooldown(self, chat_id: int, user_id: int, cooldown_type: str | Games | None = None) -> list | None:
         if not cooldown_type:
             cooldown = "*"
-        data = await self.connection.execute(f"SELECT cooldowns.{cooldown_type} FROM cooldowns, chat_users AS cu "
-                                             f"INNER JOIN cooldowns c on cu.id = c.chat_user "
-                                             f"WHERE cu.chat_id = ? AND cu.user_id = ?",
+
+        data = await self.connection.execute(f"SELECT {cooldown_type} FROM cooldowns INNER JOIN chat_users ON"
+                                             f" chat_users.id = cooldowns.chat_user WHERE chat_users.chat_id = ? "
+                                             f"AND chat_users.user_id = ?",
                                              (chat_id, user_id,))
         return await data.fetchone()
 

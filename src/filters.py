@@ -1,5 +1,6 @@
 from datetime import datetime, date
 
+from aiogram.enums import ChatType
 from aiogram.filters import BaseFilter
 from aiogram.types import Message
 
@@ -21,3 +22,8 @@ class CooldownFilter(BaseFilter):
         last_game_date: date = date.fromtimestamp(cooldown[0])
         message_date = date.fromtimestamp(message.date.timestamp())
         return last_game_date < message_date
+
+
+class IsChat(BaseFilter):
+    async def __call__(self, message: Message):
+        return message.chat.type in [ChatType.SUPERGROUP, ChatType.GROUP]
