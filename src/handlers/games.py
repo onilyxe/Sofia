@@ -30,15 +30,16 @@ async def killru_command(message: types.Message, db: Database, chat_user):
     await db.chat_user.update_user_russophobia(message.chat.id, message.from_user.id, new_russophobia)
 
     tb = TextBuilder(
-        user=message.from_user.mention_markdown(), russophobia=Code(abs(russophobia)),
+        user=TextMention(message.from_user.first_name, user=message.from_user),
         ttp=Code(get_time_until_midnight(current_time)),
-        new_russophobia=Code(new_russophobia)
+        new_russophobia=Code(new_russophobia),
+        russophobia=Code(abs(russophobia))
     )
     if russophobia > 0:
         tb.add("📈 {user}, твоя русофобія збільшилась на {russophobia} кг")
     else:
         tb.add("📉 {user}, твоя русофобія зменшилась на {russophobia} кг")
-    tb.add("\n🏷️ Тепер в тебе: {new_russophobia} кг\n⏱ Продовжуй грати через {ttp}")
+    tb.add("🏷️ Тепер в тебе: {new_russophobia} кг\n⏱ Продовжуй грати через {ttp}", True)
 
     await message.answer(tb.render(ParseMode.MARKDOWN_V2))
 
@@ -47,5 +48,5 @@ async def killru_command(message: types.Message, db: Database, chat_user):
                       F.chat.type.in_([ChatType.SUPERGROUP, ChatType.GROUP]))
 async def killru_cooldown_command(message: types.Message):
     time = get_time_until_midnight(message.date.timestamp())
-    text = Text("ℹ️ Ти можеш грати тільки один раз на день.\nСпробуй через ", Code(time))
-    await message.answer(text.as_markdown())
+    text = TextBuilder("ℹ️ Ти можеш грати тільки один раз на день.\nСпробуй через {ttp}", ttp=Code(time))
+    await message.answer(text.render(ParseMode.MARKDOWN_V2))
