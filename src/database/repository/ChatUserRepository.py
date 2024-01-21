@@ -7,6 +7,11 @@ class ChatUserRepository:
     def __init__(self, connection: Connection):
         self.connection = connection
 
+    async def get_by_id(self, row_id: int) -> list | None:
+        data = await self.connection.execute("SELECT * FROM chat_users WHERE id = ?",
+                                             (row_id,))
+        return await data.fetchone()
+
     async def get_chat_user(self, chat_id: int, user_id: int) -> list | None:
         data = await self.connection.execute("SELECT * FROM chat_users WHERE chat_id = ? AND user_id = ?",
                                              (chat_id, user_id,))
@@ -20,5 +25,5 @@ class ChatUserRepository:
 
     async def update_user_russophobia(self, chat_id: int, user_id: int, russophobia: int) -> None:
         data = await self.connection.execute("UPDATE chat_users SET russophobia = ? WHERE chat_id = ? AND user_id = ?",
-                                      (russophobia, chat_id, user_id))
+                                             (russophobia, chat_id, user_id))
         await self.connection.commit()

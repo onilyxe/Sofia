@@ -44,7 +44,8 @@ class RegisterUserMiddleware(BaseMiddleware):
 
         chat_user = await db.chat_user.get_chat_user(event.chat.id, event.from_user.id)
         if not chat_user:
-            chat_user = await db.chat_user.add_chat_user(event.chat.id, event.from_user.id)
+            chat_user_row_id = (await db.chat_user.add_chat_user(event.chat.id, event.from_user.id))[0]
+            chat_user = await db.chat_user.get_by_id(chat_user_row_id)
             await db.cooldown.add_user_cooldown(event.chat.id, event.from_user.id)
         data["chat_user"] = chat_user
 
