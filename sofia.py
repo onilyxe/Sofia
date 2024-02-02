@@ -20,10 +20,11 @@ config = Config()
 bot = Bot(config.TOKEN, parse_mode=aiogram.enums.ParseMode.MARKDOWN_V2)
 dp = Dispatcher()
 dp.message.outer_middleware(DatabaseMiddleware())
-dp.callback_query.outer_middleware(DatabaseMiddleware())
 dp.message.outer_middleware(LoggingMiddleware())
 dp.message.outer_middleware(RegisterChatMiddleware())
 dp.message.middleware(RegisterUserMiddleware())
+dp.callback_query.outer_middleware(DatabaseMiddleware())
+dp.callback_query.middleware(RegisterUserMiddleware())
 dp.include_routers(commands_router, games_router)
 
 

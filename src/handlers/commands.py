@@ -3,23 +3,18 @@ import random
 from aiogram import Router, types
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
-from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, CallbackQuery
 from aiogram.utils.formatting import Text, Code, TextMention, TextLink
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.database import Database
-from src.filters import IsChat
+from src.filters import IsChat, IsCurrentUser
+from src.types import LeaveCallback
 from src.utils import TextBuilder
 
 from src import config
 
 commands_router = Router(name="Base commands router")
-
-
-class LeaveCallback(CallbackData, prefix="leave"):
-    user_id: int
-    confirm: bool
 
 
 @commands_router.message(CommandStart())
@@ -41,7 +36,7 @@ async def about(message: types.Message):
     tb.add("{news_channel}", True)
     tb.add("{source}\n", True)
     tb.add("Made {onilyxe}. Idea {den}", True)
-    await message.reply(tb.render(ParseMode.MARKDOWN_V2))
+    await message.reply(tb.render())
 
 
 @commands_router.message(Command("my"), IsChat())
@@ -54,7 +49,7 @@ async def my_command(message: types.Message, chat_user):
         tb.add("😡 {user}, твоя русофобія: {russophobia} кг", russophobia=Code(russophobia))
     else:
         tb.add("😠 {user}, у тебе немає русофобії, губися")
-    await message.reply(tb.render(ParseMode.MARKDOWN_V2))
+    await message.reply(tb.render())
 
 
 @commands_router.message(Command("leave"), IsChat())
@@ -79,17 +74,13 @@ async def leave(message: types.Message, chat_user: list):
     )
 
     await message.answer(
-        text=tb.render(parse_mode=ParseMode.MARKDOWN_V2),
+        text=tb.render(),
         reply_markup=(kb.as_markup() if russophobia else None)
     )
 
 
-@commands_router.callback_query(LeaveCallback.filter())
+@commands_router.callback_query(LeaveCallback.filter(), IsCurrentUser(True))
 async def leave_callback(query: CallbackQuery, callback_data: LeaveCallback, db: Database):
-    if callback_data.user_id != query.from_user.id:
-        await query.bot.answer_callback_query(query.id, "❌ Ці кнопочки не для тебе!", show_alert=True)
-        return
-
     if callback_data.confirm:
         await db.user.remove_user(query.from_user.id)
         await query.bot.answer_callback_query(query.id, "👹 Ох братику, даремно ти це зробив...")

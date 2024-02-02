@@ -39,14 +39,19 @@ class RegisterUserMiddleware(BaseMiddleware):
 
         data["user"] = user
 
-        if event.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        if isinstance(event, types.CallbackQuery):
+            message = event.message
+        else: message = event
+
+        if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
             return await handler(event, data)
 
-        chat_user = await db.chat_user.get_chat_user(event.chat.id, event.from_user.id)
+
+        chat_user = await db.chat_user.get_chat_user(message.chat.id, event.from_user.id)
         if not chat_user:
-            chat_user_row_id = (await db.chat_user.add_chat_user(event.chat.id, event.from_user.id))[0]
+            chat_user_row_id = (await db.chat_user.add_chat_user(message.chat.id, event.from_user.id))[0]
             chat_user = await db.chat_user.get_by_id(chat_user_row_id)
-            await db.cooldown.add_user_cooldown(event.chat.id, event.from_user.id)
+            await db.cooldown.add_user_cooldown(message.chat.id, event.from_user.id)
         data["chat_user"] = chat_user
 
         return await handler(event, data)
