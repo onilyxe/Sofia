@@ -41,11 +41,11 @@ class RegisterUserMiddleware(BaseMiddleware):
 
         if isinstance(event, types.CallbackQuery):
             message = event.message
-        else: message = event
+        else:
+            message = event
 
         if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
             return await handler(event, data)
-
 
         chat_user = await db.chat_user.get_chat_user(message.chat.id, event.from_user.id)
         if not chat_user:

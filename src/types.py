@@ -7,22 +7,27 @@ class Games(StrEnum):
     KILLRU = "killru"
     GAME = "game"
     DICE = "dice"
+    DARTS = "darts"
+    BOWLING = "bowling"
+    BASKETBALL = "basketball"
+    FOOTBALL = "football"
+    CASINO = "casino"
+
+
+class BaseGameEnum(StrEnum):
+    PLAY = "play"
+    CANCEL = "cancel"
 
 
 class BetButtonType(StrEnum):
-    BET = "BET"
-    CANCEL = "CANCEL"
+    BET = "bet"
+    CANCEL = "cancel"
 
 
 class DiceParityEnum(StrEnum):
-    EVEN = "EVEN"
-    ODD = "ODD"
-    CANCEL = "CANCEL"
-
-
-class LeaveCallback(CallbackData, prefix="leave"):
-    user_id: int
-    confirm: bool
+    EVEN = "even"
+    ODD = "odd"
+    CANCEL = "cancel"
 
 
 class BetCallback(CallbackData, prefix="bet"):
@@ -36,3 +41,38 @@ class DiceCallback(CallbackData, prefix="dice"):
     user_id: int
     bet: int
     parity: DiceParityEnum
+
+
+class DartsCallback(CallbackData, prefix="darts"):
+    user_id: int
+    bet: int
+    action: BaseGameEnum
+
+
+class BowlingCallback(CallbackData, prefix="bowling"):
+    user_id: int
+    bet: int
+    action: BaseGameEnum
+
+
+class BasketballCallback(CallbackData, prefix="basketball"):
+    user_id: int
+    bet: int
+    action: BaseGameEnum
+
+
+class FootballCallback(CallbackData, prefix="football"):
+    user_id: int
+    bet: int
+    action: BaseGameEnum
+
+
+class CasinoCallback(CallbackData, prefix="casino"):
+    user_id: int
+    bet: int
+    action: BaseGameEnum
+
+
+class LeaveCallback(CallbackData, prefix="leave"):
+    user_id: int
+    confirm: bool

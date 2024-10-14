@@ -8,17 +8,6 @@ from aiogram import Bot, Dispatcher, types
 from datetime import datetime, timedelta
 
 
-# Отримання часу, який залишився до наступного дня
-def get_time_until_midnight(timestamp: int) -> str:
-    dt = datetime.fromtimestamp(timestamp)
-    midnight = datetime(dt.year, dt.month, dt.day) + timedelta(days=1)
-    remaining_time = midnight - dt
-    hours, remainder = divmod(remaining_time.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    remaining_time_str = f"{hours:02}:{minutes:02}:{seconds:02}"
-    return remaining_time_str
-
-
 # TODO: Refactor all functions and remove unused
 
 # Підключення до бази даних SQLite і створення таблиць

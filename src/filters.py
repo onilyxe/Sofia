@@ -8,9 +8,8 @@ from aiogram.utils.formatting import Code
 
 from src import config
 from src.database import Database
-from src.functions import get_time_until_midnight
 from src.types import Games
-from src.utils import TextBuilder
+from src.utils import TextBuilder, get_time_until_midnight
 
 
 class CooldownFilter(BaseFilter):
