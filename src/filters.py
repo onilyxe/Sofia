@@ -1,6 +1,6 @@
-from datetime import datetime, date
+from datetime import date
 
-from aiogram import F, types
+from aiogram import types
 from aiogram.enums import ChatType, ParseMode
 from aiogram.filters import BaseFilter
 from aiogram.types import Message

@@ -1,6 +1,5 @@
 import configparser
 import logging
-from datetime import datetime
 
 
 class SingletonMeta(type):

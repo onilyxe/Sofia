@@ -1,18 +1,12 @@
-import asyncio
-
 from aiogram import Router, types
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.filters import Command, CommandStart, CommandObject, or_f
-from aiogram.types import InlineKeyboardButton, CallbackQuery
-from aiogram.utils.formatting import Text, Code, TextMention, TextLink
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.filters import Command, CommandObject, or_f
+from aiogram.utils.formatting import Code, TextMention
 
-from src import config
-from src.database import Database
-from src.filters import IsChat, IsAdmin, IsSupport
-from src.types import LeaveCallback
-from src.utils import TextBuilder, reply_and_delete, get_mentioned_user
 from src.config import config
+from src.database import Database
+from src.filters import IsAdmin, IsSupport
+from src.utils import TextBuilder, reply_and_delete, get_mentioned_user
 
 admin_commands_router = Router(name="Admin commands router")
 

@@ -7,13 +7,13 @@ from aiogram import types, F
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
-from aiogram.utils.formatting import Text, Code, TextMention
+from aiogram.utils.formatting import Code, TextMention
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.config import config
 from src.database import Database
-from src.handlers.games import games_router
 from src.filters import CooldownFilter, IsChat, IsCurrentUser
+from src.handlers.games import games_router
 from src.types import Games, BetButtonType, BetCallback, GameCallback, GameCellEnum
 from src.utils import TextBuilder, get_bet_buttons, is_can_play
 

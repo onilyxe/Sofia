@@ -1,17 +1,12 @@
 import asyncio
 
 import aiogram
-from aiogram import Bot, Dispatcher, F
-from aiogram.enums import ChatType
-from aiogram.filters import Command
+from aiogram import Bot, Dispatcher
 
-from src import CooldownFilter
 from src.config import Config
-from src.database import Database
+from src.handlers import games_router, commands_router, admin_commands_router
 from src.logger import init_logger
 from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterChatMiddleware, RegisterUserMiddleware
-from src.types import Games
-from src.handlers import games_router, commands_router, admin_commands_router
 
 # Імпортуємо конфігураційний файл
 config = Config()
