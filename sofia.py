@@ -11,7 +11,7 @@ from src.database import Database
 from src.logger import init_logger
 from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterChatMiddleware, RegisterUserMiddleware
 from src.types import Games
-from src.handlers import games_router, commands_router
+from src.handlers import games_router, commands_router, admin_commands_router
 
 # Імпортуємо конфігураційний файл
 config = Config()
@@ -25,7 +25,7 @@ dp.message.outer_middleware(RegisterChatMiddleware())
 dp.message.middleware(RegisterUserMiddleware())
 dp.callback_query.outer_middleware(DatabaseMiddleware())
 dp.callback_query.middleware(RegisterUserMiddleware())
-dp.include_routers(commands_router, games_router)
+dp.include_routers(commands_router, games_router, admin_commands_router)
 
 
 async def main() -> None:

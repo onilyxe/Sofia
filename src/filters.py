@@ -40,6 +40,16 @@ class IsChat(BaseFilter):
         return message.chat.type in [ChatType.SUPERGROUP, ChatType.GROUP]
 
 
+class IsAdmin(BaseFilter):
+    async def __call__(self, message: Message):
+        return message.from_user.id in config.ADMIN
+
+
+class IsSupport(BaseFilter):
+    async def __call__(self, message: Message):
+        return message.from_user.id in config.SUPPORT
+
+
 class IsCurrentUser(BaseFilter):
     def __init__(self, send_callback: bool = False):
         self.send_callback = send_callback

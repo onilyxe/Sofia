@@ -30,11 +30,22 @@ class DiceParityEnum(StrEnum):
     CANCEL = "cancel"
 
 
+class GameCellEnum(StrEnum):
+    CELL = "cell"
+    CANCEL = "cancel"
+
+
 class BetCallback(CallbackData, prefix="bet"):
     user_id: int
     bet: int
     action: BetButtonType
     game: Games
+
+
+class GameCallback(CallbackData, prefix="game"):
+    user_id: int
+    bet: int
+    cell: GameCellEnum
 
 
 class DiceCallback(CallbackData, prefix="dice"):

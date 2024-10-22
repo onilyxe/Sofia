@@ -1,3 +1,4 @@
+import asyncio
 from math import ceil
 from typing import Type
 from datetime import datetime, timedelta
@@ -10,6 +11,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.types import Games, BetButtonType, BetCallback, BaseGameEnum
 from src.utils import TextBuilder
+from src.config import config
 
 
 def get_bet_buttons(user_id: int, game: Games) -> list[InlineKeyboardButton]:
@@ -71,3 +73,35 @@ async def process_regular_bet(
     tb.add("💰 Можливий виграш: {potential_win} кг", True, potential_win=potential_win)
 
     await callback.message.edit_text(text=tb.render(), reply_markup=kb.as_markup())
+
+
+async def reply_and_delete(message: types.Message, text: str | TextBuilder) -> None:
+    if isinstance(text, TextBuilder):
+        text = text.render()
+    reply = await message.reply(text)
+    await asyncio.sleep(config.DELETE)
+    try:
+        await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        await message.bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
+    except:
+        pass
+
+
+def get_mentioned_user(message: types.Message) -> types.User | None:
+    if message.reply_to_message and not is_service_message(message.reply_to_message):
+        return message.reply_to_message.from_user
+
+    for entity in message.entities:
+        if entity.type == "text_mention":
+            return entity.user
+
+    return None
+
+
+def is_service_message(message: types.Message) -> bool:
+    return any([message.new_chat_members, message.left_chat_member, message.new_chat_title, message.new_chat_photo,
+                message.delete_chat_photo, message.group_chat_created, message.supergroup_chat_created,
+                message.forum_topic_created, message.forum_topic_reopened, message.forum_topic_closed,
+                message.forum_topic_edited, message.general_forum_topic_hidden, message.general_forum_topic_unhidden,
+                message.giveaway_created, message.giveaway, message.giveaway_completed, message.video_chat_started,
+                message.video_chat_scheduled, message.video_chat_ended])

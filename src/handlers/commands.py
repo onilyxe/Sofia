@@ -1,18 +1,14 @@
-import random
-
 from aiogram import Router, types
 from aiogram.filters import Command, CommandStart
-from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, CallbackQuery
 from aiogram.utils.formatting import Text, Code, TextMention, TextLink
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from src import config
 from src.database import Database
 from src.filters import IsChat, IsCurrentUser
 from src.types import LeaveCallback
 from src.utils import TextBuilder
-
-from src import config
 
 commands_router = Router(name="Base commands router")
 

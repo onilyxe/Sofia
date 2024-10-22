@@ -29,7 +29,8 @@ class Config(metaclass=SingletonMeta):
 
             self.TOKEN = self._config.get("TOKEN", "BOT")
             self.SKIPUPDATES = self._config.getboolean("SETTINGS", "SKIPUPDATES")
-            self.ADMIN = self._config.getint("ID", "ADMIN")
+            self.ADMIN = [int(u_id.strip()) for u_id in self._config.get("ID", "ADMIN").split(",")]
+            self.SUPPORT = [int(u_id.strip()) for u_id in self._config.get("ID", "SUPPORT").split(",")]
             self.TEST = self._config.getboolean("SETTINGS", "TEST")
             self.DBFILE = self._config.get("SETTINGS", "DBFILE")
             self.VERSION = self._config.get("SETTINGS", "VERSION")
