@@ -105,3 +105,13 @@ def is_service_message(message: types.Message) -> bool:
                 message.forum_topic_edited, message.general_forum_topic_hidden, message.general_forum_topic_unhidden,
                 message.giveaway_created, message.giveaway, message.giveaway_completed, message.video_chat_started,
                 message.video_chat_scheduled, message.video_chat_ended])
+
+
+def format_uptime(uptime):
+    days, remainder = divmod(uptime.total_seconds(), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if days > 0:
+        return f"{int(days)} д. {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+    else:
+        return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
