@@ -23,6 +23,17 @@ class QueriesRepository:
 
         return await data.fetchone()
 
+    async def get_count_from_date(self, time: datetime) -> int:
+        data: Cursor = await self.connection.execute("SELECT SUM(count) FROM queries WHERE datetime >= ?",
+                                                     (time,))
+        query = await data.fetchone()
+        return query[0] if query else 0
+
+    async def get_total_count(self) -> int:
+        data: Cursor = await self.connection.execute("SELECT SUM(count) FROM queries")
+        query = await data.fetchone()
+        return query[0] if query else 0
+
     async def add_count_by_id(self, row_id: int) -> None:
         await self.connection.execute("UPDATE queries SET count = count + 1 WHERE id = ?", (row_id,))
         await self.connection.commit()

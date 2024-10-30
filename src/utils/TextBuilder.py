@@ -37,6 +37,7 @@ class TextBuilder:
         text = self._wrap_string(text)
         self.text += "\n" + text if new_line else text
         self.kwargs.update(self._str_to_text_obj(kwargs))
+        return self
 
     def render(self, parse_mode: PMode = PMode.MARKDOWN_V2):
         if not self.text:

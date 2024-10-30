@@ -1,11 +1,8 @@
-import configparser
 import aiosqlite
-import datetime
 import asyncio
-import aiogram
 
-from aiogram import Bot, Dispatcher, types
-from datetime import datetime, timedelta
+import aiosqlite
+from aiogram import types
 
 
 # TODO: Refactor all functions and remove unused
@@ -58,30 +55,6 @@ async def shutdown(dp):
         except Exception as e:
             print(f"Стоп error: {e}")
 
-# Додає chat_id у базу даних для розсилки
-async def add_chat(chat_id):
-    async with aiosqlite.connect('src/database.db') as db:
-        await db.execute('INSERT OR IGNORE INTO chats (chat_id) VALUES (?)', (chat_id,))
-        await db.commit()
-
-# Видаляє chat_id із бази даних для розсилки
-async def remove_chat(chat_id):
-    async with aiosqlite.connect('src/database.db') as db:
-        await db.execute('DELETE FROM chats WHERE chat_id = ?', (chat_id,))
-        await db.commit()
-
-# Перевірка на адміна
-async def admin(message: types.Message):
-    if message.from_user.id != ADMIN:
-        return False
-    return True
-
-# Перевірка на адмінів підтримки
-async def supportusers(message: types.Message):
-    SUPPORT = [int(id.strip()) for id in support_str.split(',')]
-    if message.from_user.id not in SUPPORT:
-        return False
-    return True
 
 # Перевірка налаштувань
 async def check_settings(chat_id: int, setting: str) -> bool:
@@ -103,113 +76,3 @@ async def check_type(message: types.Message):
             pass
         return True
     return False
-
-# Виведення топа
-async def show_top(message: types.Message, limit: int, title: str):
-    chat_id = message.chat.id
-    total_kg = 0
-
-    async with aiosqlite.connect('src/database.db') as db:
-        async with db.execute(
-            'SELECT user_id, value FROM user_values WHERE chat_id = ? AND value != 0 ORDER BY value DESC LIMIT ?',
-            (chat_id, limit)
-        ) as cursor:
-            results = await cursor.fetchall()
-
-        if results:
-            total_kg = sum([value for _, value in results])
-
-    if not results:
-        await reply_and_delete(message, '😯 Ще ніхто не грав')
-    else:
-        async def username(chat_id, user_id):
-            try:
-                user_info = await bot.get_chat_member(chat_id, user_id)
-                if user_info.user.username:
-                    return f'[{user_info.user.username}](https://t.me/{user_info.user.username})'
-                else:
-                    return user_info.user.full_name
-            except BadRequest:
-                return None
-
-        tasks = [username(chat_id, user_id) for user_id, _ in results]
-        user_names = await asyncio.gather(*tasks)
-
-        message_text = f'{title}:\n🎱 Усього: {total_kg} кг\n\n'
-        count = 0
-        for user_name, (_, rusophobia) in zip(user_names, results):
-            if user_name:
-                count += 1
-                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
-
-        await reply_and_delete(message, message_text)
-
-# Виведення глобального топа
-async def show_globaltop(message: types.Message, limit: int, title: str):
-    total_kg = 0
-
-    async with aiosqlite.connect('src/database.db') as db:
-        async with db.execute(
-            'SELECT user_id, MAX(value) as max_value FROM user_values WHERE value != 0 GROUP BY user_id ORDER BY max_value DESC LIMIT ?',
-            (limit,)
-        ) as cursor:
-            results = await cursor.fetchall()
-
-        if results:
-            total_kg = sum([value for _, value in results])
-
-    if not results:
-        await reply_and_delete(message, '😯 Ще ніхто не грав')
-    else:
-        async def get_username(user_id):
-            try:
-                user_info = await bot.get_chat(user_id)
-                if user_info.username:
-                    return f'[{user_info.username}](https://t.me/{user_info.username})'
-                else:
-                    return user_info.first_name
-            except BadRequest:
-                return None
-
-        tasks = [get_username(user_id) for user_id, _ in results]
-        user_names = await asyncio.gather(*tasks)
-
-        message_text = f'{title}:\n🎱 Усього: {total_kg} кг\n\n'
-        count = 0
-        for user_name, (_, rusophobia) in zip(user_names, results):
-            if user_name:
-                count += 1
-                message_text += f'{count}. {user_name}: {rusophobia} кг\n'
-
-        await reply_and_delete(message, message_text)
-
-# Відповідь на повідомлення та видалення
-async def reply_and_delete(message: types.Message, reply_text):
-    text = await message.reply(reply_text, parse_mode="Markdown", disable_web_page_preview=True)
-    await asyncio.sleep(DELETE)
-    try:
-        await bot.delete_message(chat_id=message.chat.id, message_id=text.message_id)
-        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-    except (MessageCantBeDeleted, MessageToDeleteNotFound):
-        pass
-    return
-
-# Надсилання повідомлення та видалення ісходного повідомлення
-async def send_and_delete(message: types.Message, chat_id, reply_text):
-    text = await bot.send_message(chat_id=message.chat.id, text=reply_text, parse_mode="Markdown", disable_web_page_preview=True)
-    await asyncio.sleep(DELETE)
-    try:
-        await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
-    except (MessageCantBeDeleted, MessageToDeleteNotFound):
-        pass
-    return
-
-# Редагування та видалення повідомлення
-async def edit_and_delete(message: types.Message, chat_id, message_id, reply_text):
-    await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=reply_text, parse_mode="Markdown", disable_web_page_preview=True)
-    await asyncio.sleep(DELETE)
-    try:
-        await bot.delete_message(chat_id, message_id)
-    except (MessageCantBeDeleted, MessageToDeleteNotFound):
-        pass
-    return
