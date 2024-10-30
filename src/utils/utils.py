@@ -1,17 +1,18 @@
 import asyncio
+from datetime import datetime, timedelta
 from math import ceil
 from typing import Type
-from datetime import datetime, timedelta
 
 from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, User, InputFile
 from aiogram.utils.formatting import TextMention, Code
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from src.config import config
 from src.types import Games, BetButtonType, BetCallback, BaseGameEnum
 from src.utils import TextBuilder
-from src.config import config
 
 
 def get_bet_buttons(user_id: int, game: Games) -> list[InlineKeyboardButton]:
@@ -87,6 +88,16 @@ async def reply_and_delete(message: types.Message, text: str | TextBuilder) -> N
         pass
 
 
+async def reply_voice_and_delete(message: types.Message, voice: InputFile) -> None:
+    reply = await message.reply_voice(voice=voice)
+    await asyncio.sleep(config.DELETE)
+    try:
+        await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        await message.bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
+    except:
+        pass
+
+
 def get_mentioned_user(message: types.Message) -> types.User | None:
     if message.reply_to_message and not is_service_message(message.reply_to_message):
         return message.reply_to_message.from_user
@@ -115,3 +126,40 @@ def format_uptime(uptime):
         return f"{int(days)} д. {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
     else:
         return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+
+
+async def generate_top(message: types.Message, results: list[tuple[int, int]], title: str, is_global: bool) -> None:
+    if not results:
+        await reply_and_delete(message, '😯 Ще ніхто не грав')
+    else:
+        async def get_username(user_id):
+            try:
+                user_info = await message.bot.get_chat(user_id) if is_global \
+                    else await message.bot.get_chat_member(message.chat.id, user_id)
+                if not is_global:
+                    user_info = user_info.user
+                else:
+                    user_info = User(is_bot=False, **user_info.model_dump())
+                if user_info.username:
+                    return TextMention(user_info.first_name, user=user_info)
+                else:
+                    return user_info.first_name
+            except TelegramBadRequest:
+                return None
+
+        tasks = [get_username(user_id) for user_id, _ in results]
+        user_names = await asyncio.gather(*tasks)
+
+        total_kg = sum([value for _, value in results])
+
+        tb = TextBuilder()
+        tb.add(f'{title}:\n🎱 Усього: {total_kg} кг\n')
+        count = 0
+        for user_name, (_, rusophobia) in zip(user_names, results):
+            if user_name:
+                count += 1
+                d = {f"count_{count}": count, f"user_name_{count}": user_name, f"rusophobia_{count}": rusophobia}
+                tb.add('{count_%(count)s}. {user_name_%(count)s}: {rusophobia_%(count)s} кг' % {"count": count}, True,
+                       **d)
+
+        await reply_and_delete(message, tb.render())

@@ -1,16 +1,21 @@
+from datetime import datetime, timedelta
+
+import psutil
 from aiogram import Router, types
 from aiogram.filters import Command, CommandStart
 from aiogram.types import InlineKeyboardButton, CallbackQuery
 from aiogram.utils.formatting import Text, Code, TextMention, TextLink
+from aiogram.utils.formatting import Italic as It
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src import config
 from src.database import Database
 from src.filters import IsChat, IsCurrentUser
 from src.types import LeaveCallback
-from src.utils import TextBuilder
+from src.utils import TextBuilder, reply_and_delete, format_uptime, generate_top
 
 commands_router = Router(name="Base commands router")
+bot_start_time = datetime.now()
 
 
 @commands_router.message(CommandStart())
@@ -73,6 +78,69 @@ async def leave(message: types.Message, chat_user: list):
         text=tb.render(),
         reply_markup=(kb.as_markup() if russophobia else None)
     )
+
+
+@commands_router.message(Command("ping"))
+async def ping(message: types.Message, db: Database):
+    start_time = datetime.now()
+    await message.bot.get_me()
+    ping_time = (datetime.now() - start_time).total_seconds() * 1000
+    cpu_usage = psutil.cpu_percent(interval=1)
+    ram_usage = psutil.virtual_memory().percent
+    now = datetime.now()
+    uptime = now - bot_start_time
+    formatted_uptime = format_uptime(uptime)
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_week = start_of_today - timedelta(days=now.weekday())
+
+    today_record = await db.query.get_query(start_time)
+    today_queries = today_record[1] if today_record else 0
+
+    period_start = start_of_today if now.weekday() == 0 else start_of_week
+    week_queries = await db.query.get_count_from_date(period_start)
+
+    all_time_queries = await db.query.get_total_count()
+
+    tb = TextBuilder()
+    (tb.add("📡 Ping: {ping_time} ms\n", ping_time=Code(f"{ping_time:.2f}"))
+     .add("🔥 CPU: {cpu_usage}%", True, cpu_usage=Code(cpu_usage))
+     .add("💾 RAM: {ram_usage}%", True, ram_usage=Code(ram_usage))
+     .add("⏱️ Uptime: {formatted_uptime}\n", True, formatted_uptime=Code(formatted_uptime))
+     .add("📊 Кількість запитів:", True)
+     .add("{today}: {today_queries}", True, today=It("За сьогодні"), today_queries=Code(today_queries))
+     .add("{week}: {week_queries}", True, week=It("За тиждень"), week_queries=Code(week_queries))
+     .add("{all_time}: {all_time_queries}", True, all_time=It("За весь час"), all_time_queries=Code(all_time_queries))
+     )
+
+    await reply_and_delete(message, tb.render())
+
+
+@commands_router.message(Command("globaltop"))
+async def global_top(message: types.Message, db: Database):
+    results = await db.chat_user.get_global_top()
+    title = "🏆 Глобальний топ русофобії"
+    await generate_top(message, results, title, True)
+
+
+@commands_router.message(Command("globaltop10"))
+async def global_top10(message: types.Message, db: Database):
+    results = await db.chat_user.get_global_top(10)
+    title = "🏆 Глобальний топ 10 русофобії"
+    await generate_top(message, results, title, True)
+
+
+@commands_router.message(Command("top"))
+async def top(message: types.Message, db: Database):
+    results = await db.chat_user.get_chat_top(message.chat.id)
+    title = "🏆 Топ русофобії чату"
+    await generate_top(message, results, title, False)
+
+
+@commands_router.message(Command("top10"))
+async def top10(message: types.Message, db: Database):
+    results = await db.chat_user.get_chat_top(message.chat.id, 10)
+    title = "🏆 Топ 10 русофобії чату"
+    await generate_top(message, results, title, False)
 
 
 @commands_router.callback_query(LeaveCallback.filter(), IsCurrentUser(True))

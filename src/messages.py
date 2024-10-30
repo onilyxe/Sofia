@@ -32,70 +32,6 @@ cache = aiocache.Cache()
 # /ping
 bot_start_time = datetime.now()
 
-def format_uptime(uptime):
-    days, remainder = divmod(uptime.total_seconds(), 86400)
-    hours, remainder = divmod(remainder, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    if days > 0:
-        return f"{int(days)} д. {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
-    else:
-        return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
-
-async def ping(message: types.Message):
-    start_time = datetime.now()
-    await bot.get_me()
-    end_time = datetime.now()
-    ping_time = (end_time - start_time).total_seconds() * 1000
-    cpu_usage = psutil.cpu_percent(interval=1)
-    ram_usage = psutil.virtual_memory().percent
-    now = datetime.now()
-    uptime = now - bot_start_time
-    formatted_uptime = format_uptime(uptime)
-    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    start_of_week = start_of_today - timedelta(days=now.weekday())
-
-    async with aiosqlite.connect('src/database.db') as db:
-        async with db.execute('SELECT count FROM queries WHERE datetime >= ? AND datetime < ? ORDER BY datetime DESC LIMIT 1', (start_time.replace(hour=0, minute=0, second=0, microsecond=0), start_time.replace(hour=23, minute=59, second=59, microsecond=999999))) as cursor:
-            today_record = await cursor.fetchone()
-            today_queries = today_record[0] if today_record else 0
-
-        period_start = start_of_today if now.weekday() == 0 else start_of_week
-        async with db.execute('SELECT SUM(count) FROM queries WHERE datetime >= ?', (period_start,)) as cursor:
-            week_record = await cursor.fetchone()
-            week_queries = week_record[0] if week_record else 0
-
-        async with db.execute('SELECT SUM(count) FROM queries') as cursor:
-            all_time_record = await cursor.fetchone()
-            all_time_queries = all_time_record[0] if all_time_record else 0
-
-    ping_text = (
-        f"📡 Ping: `{ping_time:.2f}` ms\n\n"
-        f"🔥 CPU: `{cpu_usage}%`\n"
-        f"💾 RAM: `{ram_usage}%`\n"
-        f"⏱️ Uptime: `{formatted_uptime}`\n\n"
-        f"📊 Кількість запитів:\n"
-        f"_За сьогодні:_ `{today_queries}`\n"
-        f"_За тиждень:_ `{week_queries}`\n"
-        f"_За весь час:_ `{all_time_queries}`")
-
-    await reply_and_delete(message, ping_text)
-
-# /globaltop
-async def globaltop(message: types.Message):
-    await show_globaltop(message, limit=101, title='🌏 Глобальний топ русофобій')
-
-# /globaltop10
-async def globaltop10(message: types.Message):
-    await show_globaltop(message, limit=10, title='🌏 Глобальний топ 10 русофобій')
-
-# /top
-async def top(message: types.Message):
-    await show_top(message, limit=101, title='📊 Топ русофобій чату')
-
-# /top10
-async def top10(message: types.Message):
-    await show_top(message, limit=10, title='📊 Топ 10 русофобій чату')
-
 # /settings
 async def settings(message: types.Message):
     chat_id = message.chat.id
@@ -448,23 +384,13 @@ async def give_inline(callback_query: types.CallbackQuery):
 
 # Ініціалізація обробника
 def messages_handlers(dp, bot):
-    dp.register_message_handler(start, commands=['start'])
-    dp.register_message_handler(ping, commands=['ping'])
-    dp.register_message_handler(about, commands=['about'])
-    dp.register_message_handler(globaltop, commands=['globaltop'])
-    dp.register_message_handler(globaltop10, commands=['globaltop10'])
-    dp.register_message_handler(top10, commands=['top10'])
-    dp.register_message_handler(top, commands=['top'])
     dp.register_message_handler(settings, commands=['settings'])
     dp.register_callback_query_handler(handle_settings_callback, lambda c: c.data.startswith('toggle_'))
     dp.register_message_handler(shop, commands=['shop'])
     dp.register_callback_query_handler(shop_selected, lambda c: c.data == 'main_shop' or c.data.startswith('shop_'))
     dp.register_callback_query_handler(back_to_shop, lambda c: c.data == 'back_to_shop')
-    dp.register_message_handler(my, commands=['my'])
     dp.register_message_handler(help, commands=['help'])
     dp.register_callback_query_handler(game_selected, lambda c: c.data == 'main_game' or c.data.startswith('game_'))
     dp.register_callback_query_handler(back_to_games, lambda c: c.data == 'back_to_games')
-    dp.register_message_handler(leave, commands=['leave'])
-    dp.register_callback_query_handler(leave_inline, lambda c: c.data in ['confirm_leave', 'cancel_leave'])
     dp.register_message_handler(give, commands=['give'])
     dp.register_callback_query_handler(give_inline, lambda c: c.data and c.data.startswith('give_'))

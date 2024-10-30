@@ -6,7 +6,8 @@ from aiogram import Bot, Dispatcher
 from src.config import Config
 from src.handlers import games_router, commands_router, admin_commands_router
 from src.logger import init_logger
-from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterChatMiddleware, RegisterUserMiddleware
+from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterChatMiddleware, RegisterUserMiddleware, \
+    RateLimitMiddleware
 
 # Імпортуємо конфігураційний файл
 config = Config()
@@ -17,6 +18,7 @@ dp = Dispatcher()
 dp.message.outer_middleware(DatabaseMiddleware())
 dp.message.outer_middleware(LoggingMiddleware())
 dp.message.outer_middleware(RegisterChatMiddleware())
+dp.message.outer_middleware(RateLimitMiddleware(config.SPEED, config.MESSAGES, config.BAN))
 dp.message.middleware(RegisterUserMiddleware())
 dp.callback_query.outer_middleware(DatabaseMiddleware())
 dp.callback_query.middleware(RegisterUserMiddleware())
