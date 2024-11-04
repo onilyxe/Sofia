@@ -32,55 +32,6 @@ cache = aiocache.Cache()
 # /ping
 bot_start_time = datetime.now()
 
-# /settings
-async def settings(message: types.Message):
-    chat_id = message.chat.id
-
-    user = await bot.get_chat_member(chat_id, message.from_user.id)
-    if not user.status in ['administrator', 'creator']:
-        return
-
-    async with aiosqlite.connect('src/database.db') as db:
-        cursor = await db.execute('SELECT minigame, give FROM chats WHERE chat_id = ?', (chat_id,))
-        settings = await cursor.fetchone()
-        minigame_enabled = True if settings is None or settings[0] is None else settings[0]
-        give_enabled = True if settings is None or settings[1] is None else settings[1]
-
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton(f"Міні-ігри: {'✅' if minigame_enabled else '❌'}", callback_data=f"toggle_minigame_{chat_id}"))
-    keyboard.add(InlineKeyboardButton(f"Передача кг: {'✅' if give_enabled else '❌'}", callback_data=f"toggle_give_{chat_id}"))
-
-    await message.reply("⚙️ Налаштування чату:", reply_markup=keyboard)
-
-async def handle_settings_callback(callback_query: types.CallbackQuery):
-    chat_id = int(callback_query.data.split('_')[2])
-    setting = callback_query.data.split('_')[1]
-
-    if setting not in ['minigame', 'give']:
-        await callback_query.answer("❌ Невідома настройка", show_alert=True)
-        return
-
-    user = await bot.get_chat_member(chat_id, callback_query.from_user.id)
-    if not user.status in ['administrator', 'creator']:
-        await callback_query.answer("❌ Тільки адміністратори можуть змінювати налаштування", show_alert=True)
-        return
-
-    async with aiosqlite.connect('src/database.db') as db:
-        await db.execute(f'UPDATE chats SET {setting} = NOT COALESCE({setting}, 1) WHERE chat_id = ?', (chat_id,))
-        await db.commit()
-
-        cursor = await db.execute('SELECT minigame, give FROM chats WHERE chat_id = ?', (chat_id,))
-        updated_settings = await cursor.fetchone()
-        minigame_enabled = True if updated_settings[0] is None else updated_settings[0]
-        give_enabled = True if updated_settings[1] is None else updated_settings[1]
-
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton(f"Міні-ігри: {'✅' if minigame_enabled else '❌'}", callback_data=f"toggle_minigame_{chat_id}"))
-    keyboard.add(InlineKeyboardButton(f"Передача кг: {'✅' if give_enabled else '❌'}", callback_data=f"toggle_give_{chat_id}"))
-
-    await bot.edit_message_text(chat_id=chat_id, message_id=callback_query.message.message_id, text="⚙️ Налаштування чату:", reply_markup=keyboard)
-    await callback_query.answer("ℹ️ Змінено")
-
 # /shop
 async def shop(message: types.Message):
     keyboard = InlineKeyboardMarkup(row_width=1)

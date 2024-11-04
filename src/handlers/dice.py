@@ -11,12 +11,12 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.database import Database
 from src.handlers.games import games_router
-from src.filters import CooldownFilter, IsChat, IsCurrentUser
+from src.filters import CooldownFilter, IsChat, IsCurrentUser, GamesFilter
 from src.types import Games, BetButtonType, BetCallback, DiceCallback, DiceParityEnum
 from src.utils import TextBuilder, get_bet_buttons, is_can_play
 
 
-@games_router.message(Command(Games.DICE), IsChat(), CooldownFilter(Games.DICE, True))
+@games_router.message(Command(Games.DICE), IsChat(), CooldownFilter(Games.DICE, True), GamesFilter())
 async def dice_command(message: types.Message, chat_user):
     tb, kb = TextBuilder(), InlineKeyboardBuilder()
     kb.row(*get_bet_buttons(message.from_user.id, Games.DICE), width=2)

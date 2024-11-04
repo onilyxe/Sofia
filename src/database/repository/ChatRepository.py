@@ -27,3 +27,7 @@ class ChatRepository:
     async def remove_chat(self, chat_id: int) -> None:
         await self.connection.execute("DELETE FROM chats WHERE chat_id = ?", (chat_id,))
         await self.connection.commit()
+
+    async def set_chat_setting(self, chat_id: int, minigames: int = 0, give: int = 0) -> None:
+        await self.connection.execute("UPDATE chats SET minigames = ?, give = ? WHERE chat_id = ?", (minigames, give, chat_id))
+        await self.connection.commit()

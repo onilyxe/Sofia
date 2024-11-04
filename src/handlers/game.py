@@ -12,13 +12,13 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.config import config
 from src.database import Database
-from src.filters import CooldownFilter, IsChat, IsCurrentUser
+from src.filters import CooldownFilter, IsChat, IsCurrentUser, GamesFilter
 from src.handlers.games import games_router
 from src.types import Games, BetButtonType, BetCallback, GameCallback, GameCellEnum
 from src.utils import TextBuilder, get_bet_buttons, is_can_play
 
 
-@games_router.message(Command(Games.GAME), IsChat(), CooldownFilter(Games.GAME, True))
+@games_router.message(Command(Games.GAME), IsChat(), CooldownFilter(Games.GAME, True), GamesFilter())
 async def game_command(message: types.Message, chat_user):
     tb, kb = TextBuilder(), InlineKeyboardBuilder()
     kb.row(*get_bet_buttons(message.from_user.id, Games.GAME), width=2)
@@ -75,7 +75,7 @@ async def game_callback_bet_play(callback: types.CallbackQuery, callback_data: G
         tb.add("🏷️ Тепер у тебе: {new_balance} кг", True, new_balance=Code(new_balance))
 
     try:
-        await callback.message.edit_text("🧌 Тикаємо палицею в труп, здох чи не\.\.")
+        await callback.message.edit_text("🧌 Тикаємо палицею в труп, здох чи не\\.\\.")
         await asyncio.sleep(4)
         await callback.bot.answer_callback_query(callback.id, "ℹ️ Гру завершено")
         await callback.message.edit_text(tb.render())

@@ -11,7 +11,7 @@ class LoggingMiddleware(BaseMiddleware):
         "text": lambda m: m.text,
         "sticker": lambda m: f"sticker, f_id={m.sticker.file_id}",
         "audio": lambda m: f"audio, f_id={m.audio.file_id}",
-        "photo": lambda m: f"photo, f_id={m.photo.file_id}",
+        "photo": lambda m: f"photos, f_ids={[m.file_id for m in m.photo]}",
         "video": lambda m: f"video, f_id={m.video.file_id}"}
 
     async def __call__(self, handler: Callable[[types.Message, Dict[str, Any]], Awaitable[Any]], event: types.Message,

@@ -9,14 +9,14 @@ from aiogram.utils.formatting import Text, Code, TextMention
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.database import Database
-from src.filters import CooldownFilter, IsChat, IsCurrentUser
+from src.filters import CooldownFilter, IsChat, IsCurrentUser, GamesFilter
 from src.handlers.games import games_router
 from src.types import Games, BetButtonType, BetCallback, DartsCallback, BaseGameEnum
 from src.utils import TextBuilder, get_bet_buttons
 from src.utils.utils import process_regular_bet
 
 
-@games_router.message(Command(Games.DARTS), IsChat(), CooldownFilter(Games.DARTS, True))
+@games_router.message(Command(Games.DARTS), IsChat(), CooldownFilter(Games.DARTS, True), GamesFilter())
 async def darts_command(message: types.Message, chat_user):
     tb, kb = TextBuilder(), InlineKeyboardBuilder()
     kb.row(*get_bet_buttons(message.from_user.id, Games.DARTS), width=2)

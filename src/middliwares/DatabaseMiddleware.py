@@ -9,7 +9,7 @@ from src.database import DatabaseWrapper, Database
 
 
 async def process_message(db: Database, msg: types.Message):
-    if not (msg.text and msg.text.startswith("/")):
+    if not (isinstance(msg, types.Message) and isinstance(msg.text, str) and msg.text.startswith("/")):
         return
 
     nowtime = datetime.now()

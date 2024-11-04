@@ -35,6 +35,11 @@ class GameCellEnum(StrEnum):
     CANCEL = "cancel"
 
 
+class SettingsEnum(StrEnum):
+    MINIGAMES = "minigames"
+    GIVE = "give"
+
+
 class BetCallback(CallbackData, prefix="bet"):
     user_id: int
     bet: int
@@ -87,3 +92,7 @@ class CasinoCallback(CallbackData, prefix="casino"):
 class LeaveCallback(CallbackData, prefix="leave"):
     user_id: int
     confirm: bool
+
+
+class SettingsCallback(CallbackData, prefix="settings"):
+    setting: SettingsEnum

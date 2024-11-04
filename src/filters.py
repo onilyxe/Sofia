@@ -35,6 +35,12 @@ class CooldownFilter(BaseFilter):
         return result
 
 
+class GamesFilter(BaseFilter):
+    async def __call__(self, message: Message, db: Database):
+        chat = await db.chat.get_chat(message.chat.id)
+        return bool(chat[1])
+
+
 class IsChat(BaseFilter):
     async def __call__(self, message: Message):
         return message.chat.type in [ChatType.SUPERGROUP, ChatType.GROUP]
@@ -48,6 +54,12 @@ class IsAdmin(BaseFilter):
 class IsSupport(BaseFilter):
     async def __call__(self, message: Message):
         return message.from_user.id in config.SUPPORT
+
+
+class IsChatAdmin(BaseFilter):
+    async def __call__(self, message: Message):
+        chat = await message.bot.get_chat_member(message.chat.id, message.from_user.id)
+        return chat.status in ["administrator", "creator"]
 
 
 class IsCurrentUser(BaseFilter):
