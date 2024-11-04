@@ -40,6 +40,12 @@ class SettingsEnum(StrEnum):
     GIVE = "give"
 
 
+class ShopEnum(StrEnum):
+    HOW_TO_BUY = "how_to_buy"
+    WHAT_IS_PRICE = "what_is_price"
+    WHERE_MONEY_GO = "where_money_go"
+
+
 class BetCallback(CallbackData, prefix="bet"):
     user_id: int
     bet: int
@@ -96,3 +102,11 @@ class LeaveCallback(CallbackData, prefix="leave"):
 
 class SettingsCallback(CallbackData, prefix="settings"):
     setting: SettingsEnum
+
+
+class ShopCallback(CallbackData, prefix="shop"):
+    menu: ShopEnum
+
+
+class HelpCallback(CallbackData, prefix="help"):
+    game: Games

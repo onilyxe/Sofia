@@ -13,16 +13,19 @@ from src.utils import TextBuilder, get_time_until_midnight
 
 
 class CooldownFilter(BaseFilter):
-    def __init__(self, game_type: str | Games, send_answer: bool = False):
-        if isinstance(game_type, Games):
-            game_type = str(game_type)
-        self.game_type = game_type
+    def __init__(self, cooldown_type: str | Games, send_answer: bool = False):
+        if isinstance(cooldown_type, Games):
+            cooldown_type = str(cooldown_type)
+            self.is_game = True
+        else:
+            self.is_game = False
+        self.cooldown_type = cooldown_type
         self.send_answer = send_answer
 
     async def __call__(self, message: Message, db: Database):
         if config.TEST:
             return True
-        cooldown = await db.cooldown.get_user_cooldown(message.chat.id, message.from_user.id, self.game_type)
+        cooldown = await db.cooldown.get_user_cooldown(message.chat.id, message.from_user.id, self.cooldown_type)
         if cooldown is None:
             return True
         last_game_date: date = date.fromtimestamp(cooldown[0])
@@ -30,7 +33,10 @@ class CooldownFilter(BaseFilter):
         result = last_game_date < message_date
         if not result and self.send_answer:
             time = get_time_until_midnight(message.date.timestamp())
-            text = TextBuilder("ℹ️ Ти можеш грати тільки один раз на день.\nСпробуй через {ttp}", ttp=Code(time))
+            text = "ℹ️ Ти можеш грати тільки один раз на день.\nСпробуй через {ttp}" \
+                if self.is_game \
+                else "ℹ️ Ти ще не можеш передати русофобію.\nСпробуй через {ttp}"
+            text = TextBuilder(text, ttp=Code(time))
             await message.reply(text.render(ParseMode.MARKDOWN_V2))
         return result
 
@@ -39,6 +45,12 @@ class GamesFilter(BaseFilter):
     async def __call__(self, message: Message, db: Database):
         chat = await db.chat.get_chat(message.chat.id)
         return bool(chat[1])
+
+
+class GiveFilter(BaseFilter):
+    async def __call__(self, message: Message, db: Database):
+        chat = await db.chat.get_chat(message.chat.id)
+        return bool(chat[2])
 
 
 class IsChat(BaseFilter):

@@ -76,10 +76,10 @@ async def process_regular_bet(
     await callback.message.edit_text(text=tb.render(), reply_markup=kb.as_markup())
 
 
-async def reply_and_delete(message: types.Message, text: str | TextBuilder) -> None:
+async def reply_and_delete(message: types.Message, text: str | TextBuilder, reply_markup=None) -> None:
     if isinstance(text, TextBuilder):
         text = text.render()
-    reply = await message.reply(text)
+    reply = await message.reply(text, reply_markup=reply_markup)
     await asyncio.sleep(config.DELETE)
     try:
         await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)

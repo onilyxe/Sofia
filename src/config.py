@@ -39,6 +39,7 @@ class Config(metaclass=SingletonMeta):
             self.MESSAGES = self._config.getint("SPAM", "MESSAGES")
             self.RANDOMGAMES = self._config.getfloat("SETTINGS", "RANDOMGAMES")
             self.ALIASES = {k: int(v) for k, v in self._config["ALIASES"].items()}
+            self.DONATE = self._config.get("SETTINGS", "DONATE")
 
         except configparser.NoSectionError as e:
             logging.error(
