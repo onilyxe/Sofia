@@ -4,6 +4,7 @@ import aiogram
 from aiogram import Bot, Dispatcher
 
 from src.config import Config
+from src.functions import startup, shutdown
 from src.handlers import games_router, commands_router, admin_commands_router
 from src.logger import init_logger
 from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterChatMiddleware, RegisterUserMiddleware, \
@@ -28,7 +29,12 @@ dp.include_routers(commands_router, games_router, admin_commands_router)
 async def main() -> None:
     if config.SKIPUPDATES:
         await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+
+    await startup(bot)  # Виклик функції при запуску
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await shutdown(bot)  # Виклик функції при завершенні
 
 
 if __name__ == "__main__":

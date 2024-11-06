@@ -8,29 +8,32 @@ from aiogram.utils.formatting import Code
 
 from src import config
 from src.database import Database
-from src.types import Games
+from src.types import Games, Actions
 from src.utils import TextBuilder, get_time_until_midnight
 
 
 class CooldownFilter(BaseFilter):
-    def __init__(self, cooldown_type: str | Games, send_answer: bool = False):
-        if isinstance(cooldown_type, Games):
-            cooldown_type = str(cooldown_type)
-            self.is_game = True
-        else:
-            self.is_game = False
-        self.cooldown_type = cooldown_type
+    def __init__(self, cooldown_type: str | Games | Actions, send_answer: bool = False):
+        self.is_game = isinstance(cooldown_type, Games)
+        self.cooldown_type = str(cooldown_type)
         self.send_answer = send_answer
 
     async def __call__(self, message: Message, db: Database):
         if config.TEST:
             return True
-        cooldown = await db.cooldown.get_user_cooldown(message.chat.id, message.from_user.id, self.cooldown_type)
+        if isinstance(message, types.CallbackQuery):
+            user_id = message.from_user.id
+            message = message.message
+        else:
+            user_id = message.from_user.id
+
+        cooldown = await db.cooldown.get_user_cooldown(message.chat.id, user_id, self.cooldown_type)
         if cooldown is None:
             return True
         last_game_date: date = date.fromtimestamp(cooldown[0])
         message_date = date.fromtimestamp(message.date.timestamp())
         result = last_game_date < message_date
+
         if not result and self.send_answer:
             time = get_time_until_midnight(message.date.timestamp())
             text = "ℹ️ Ти можеш грати тільки один раз на день.\nСпробуй через {ttp}" \
@@ -70,7 +73,11 @@ class IsSupport(BaseFilter):
 
 class IsChatAdmin(BaseFilter):
     async def __call__(self, message: Message):
-        chat = await message.bot.get_chat_member(message.chat.id, message.from_user.id)
+        if isinstance(message, types.CallbackQuery):
+            chat = message.message.chat
+        else:
+            chat = message.chat
+        chat = await message.bot.get_chat_member(chat.id, message.from_user.id)
         return chat.status in ["administrator", "creator"]
 
 
@@ -83,4 +90,3 @@ class IsCurrentUser(BaseFilter):
         if not result and self.send_callback:
             await callback.bot.answer_callback_query(callback.id, "❌ Ці кнопочки не для тебе!", show_alert=True)
         return result
-

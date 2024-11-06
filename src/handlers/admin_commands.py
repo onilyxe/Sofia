@@ -140,8 +140,6 @@ async def add_command(message: types.Message, db: Database, command: CommandObje
         await reply_and_delete(message, tb.render())
         return
 
-    chat_id = None
-
     try:
         chat_id = int(parts[0]) if parts[0].startswith('-100') else config.ALIASES[parts[0].lower()]
         user_id = int(parts[1])

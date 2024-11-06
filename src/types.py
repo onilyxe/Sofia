@@ -14,6 +14,10 @@ class Games(StrEnum):
     CASINO = "casino"
 
 
+class Actions(StrEnum):
+    GIVE = "give"
+
+
 class BaseGameEnum(StrEnum):
     PLAY = "play"
     CANCEL = "cancel"
@@ -44,6 +48,11 @@ class ShopEnum(StrEnum):
     HOW_TO_BUY = "how_to_buy"
     WHAT_IS_PRICE = "what_is_price"
     WHERE_MONEY_GO = "where_money_go"
+
+
+class GiveEnum(StrEnum):
+    YES = "yes"
+    NO = "no"
 
 
 class BetCallback(CallbackData, prefix="bet"):
@@ -110,3 +119,11 @@ class ShopCallback(CallbackData, prefix="shop"):
 
 class HelpCallback(CallbackData, prefix="help"):
     game: Games
+
+
+class GiveCallback(CallbackData, prefix="give"):
+    user_id: int
+    receiver_id: int
+    value: int
+    receiver_balance: int
+    action: GiveEnum

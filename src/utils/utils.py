@@ -57,6 +57,8 @@ async def process_regular_bet(
         potential_win = Code(ceil(bet * wins_multiplies))
     elif isinstance(wins_multiplies, list):
         potential_win = Code(ceil(bet * wins_multiplies[0])) + " або " + Code(ceil(bet * wins_multiplies[1]))
+    else:
+        potential_win = Code(0)
     user = callback.from_user
 
     if not await is_can_play(balance, bet, callback):
@@ -84,7 +86,7 @@ async def reply_and_delete(message: types.Message, text: str | TextBuilder, repl
     try:
         await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         await message.bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
-    except:
+    except TelegramBadRequest:
         pass
 
 
@@ -94,7 +96,7 @@ async def reply_voice_and_delete(message: types.Message, voice: InputFile) -> No
     try:
         await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
         await message.bot.delete_message(chat_id=message.chat.id, message_id=reply.message_id)
-    except:
+    except TelegramBadRequest:
         pass
 
 

@@ -81,10 +81,10 @@ async def dice_callback_bet_play(callback: types.CallbackQuery, callback_data: D
     try:
         await callback.bot.answer_callback_query(callback.id, "🎲 Кубик кинуто")
         await callback.message.edit_text(tb.render())
-    except TelegramRetryAfter as e:
+    except TelegramRetryAfter:
         pass
     else:
-        await db.cooldown.update_user_cooldown(chat_id, callback.from_user.id, Games.CASINO, current_time)
+        await db.cooldown.update_user_cooldown(chat_id, callback.from_user.id, Games.DICE, current_time)
         await db.chat_user.update_user_russophobia(chat_id, callback.from_user.id, new_balance)
 
 

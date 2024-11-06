@@ -7,7 +7,7 @@ from aiogram.utils.formatting import Text
 
 
 class TextBuilder:
-    def __init__(self, text: str = None, **kwargs: Text|Any):
+    def __init__(self, text: str = None, **kwargs: Text | Any):
         self.kwargs = self._str_to_text_obj(kwargs)
         self._temp_substrings = {}
         self.text = self._wrap_string(text) if text else ""
@@ -33,7 +33,7 @@ class TextBuilder:
             text = text.replace(k, w)
         return text.format(**items)
 
-    def add(self, text: str = None, new_line: bool = False, **kwargs: Text|Any):
+    def add(self, text: str = None, new_line: bool = False, **kwargs: Text | Any):
         text = self._wrap_string(text)
         self.text += "\n" + text if new_line else text
         self.kwargs.update(self._str_to_text_obj(kwargs))

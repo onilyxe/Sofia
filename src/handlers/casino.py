@@ -38,7 +38,8 @@ async def casino_callback_bet_play(callback: types.CallbackQuery,
     balance = chat_user[3]
     chat_id = callback.message.chat.id
     current_time = int(time.time())
-    await callback.message.edit_text(Text("🎰 Довбаний рот цього казино, блядь! Ти хто такий, сука, щоб це зробити?..").as_markdown())
+    await callback.message.edit_text(Text("🎰 Довбаний рот цього казино, блядь! "
+                                          "Ти хто такий, сука, щоб це зробити?..").as_markdown())
 
     user = TextMention(callback.from_user.first_name, user=callback.from_user)
     casino_value = (await callback.message.reply_dice(emoji='🎰')).dice.value
@@ -66,7 +67,7 @@ async def casino_callback_bet_play(callback: types.CallbackQuery,
     try:
         await callback.bot.answer_callback_query(callback.id, "🎰 Гру завершено")
         await callback.message.edit_text(tb.render())
-    except TelegramRetryAfter as e:
+    except TelegramRetryAfter:
         pass
     else:
         await db.cooldown.update_user_cooldown(chat_id, callback.from_user.id, Games.CASINO, current_time)

@@ -79,10 +79,10 @@ async def game_callback_bet_play(callback: types.CallbackQuery, callback_data: G
         await asyncio.sleep(4)
         await callback.bot.answer_callback_query(callback.id, "ℹ️ Гру завершено")
         await callback.message.edit_text(tb.render())
-    except TelegramRetryAfter as e:
+    except TelegramRetryAfter:
         pass
     else:
-        await db.cooldown.update_user_cooldown(chat_id, callback.from_user.id, Games.CASINO, current_time)
+        await db.cooldown.update_user_cooldown(chat_id, callback.from_user.id, Games.GAME, current_time)
         await db.chat_user.update_user_russophobia(chat_id, callback.from_user.id, new_balance)
 
 
