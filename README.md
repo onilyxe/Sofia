@@ -10,7 +10,7 @@
 $ git clone https://github.com/onilyxe/sofia.git
 
 # Змініть робочу директорію на sofia
-$ cd Sofia
+$ cd sofia
 ```
 
 Налаштування
