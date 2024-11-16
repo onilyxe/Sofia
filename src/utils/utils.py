@@ -7,7 +7,7 @@ from aiogram import types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, User, InputFile
-from aiogram.utils.formatting import TextMention, Code
+from aiogram.utils.formatting import TextMention, Code, Text
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.config import config
@@ -131,8 +131,9 @@ def format_uptime(uptime):
 
 
 async def generate_top(message: types.Message, results: list[tuple[int, int]], title: str, is_global: bool) -> None:
+    tb = TextBuilder()
     if not results:
-        await reply_and_delete(message, 'Ніхто не грав. Нахуй я взагалі писав цього йобаного бота бляха')
+        await reply_and_delete(message, tb.add('Ніхто не грав. Нахуй я взагалі писав цього йобаного бота бляха').render())
     else:
         async def get_username(user_id):
             try:
@@ -154,14 +155,15 @@ async def generate_top(message: types.Message, results: list[tuple[int, int]], t
 
         total_kg = sum([value for _, value in results])
 
-        tb = TextBuilder()
+        
         tb.add(f'{title}:\n🎱 Усього: {total_kg} кг\n')
         count = 0
         for user_name, (_, rusophobia) in zip(user_names, results):
             if user_name:
                 count += 1
-                d = {f"count_{count}": count, f"user_name_{count}": user_name, f"rusophobia_{count}": rusophobia}
+                d = {f"count_{count}": count, f"user_name_{count}": user_name, f"rusophobia_{count}": Text(rusophobia)}
                 tb.add('{count_%(count)s}. {user_name_%(count)s}: {rusophobia_%(count)s} кг' % {"count": count}, True,
                        **d)
 
         await reply_and_delete(message, tb.render())
+

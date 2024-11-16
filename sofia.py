@@ -13,11 +13,8 @@ from src.middliwares import LoggingMiddleware, DatabaseMiddleware, RegisterChatM
 # Імпортуємо конфігураційний файл
 config = Config()
 
-from aiogram.client.bot import DefaultBotProperties
-from aiogram.enums import ParseMode
-
 # Ініціалізація бота та диспетчера
-bot = Bot(config.TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
+bot = Bot(config.TOKEN, parse_mode=aiogram.enums.ParseMode.MARKDOWN_V2)
 dp = Dispatcher()
 dp.message.outer_middleware(DatabaseMiddleware())
 dp.message.outer_middleware(LoggingMiddleware())
