@@ -36,7 +36,6 @@ async def startup(bot: Bot):
 
     await bot.set_my_commands(commands)
     if config.STATUS:
-        print("Бот запущ")
         try:
             await bot.send_message(config.CHANNEL, f"🚀 Бот запущений")
         except Exception as e:

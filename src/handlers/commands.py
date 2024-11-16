@@ -31,13 +31,14 @@ async def about(message: types.Message):
         news_channel=TextLink("News Channel", url="t.me/SofiaBotRol"),
         source=TextLink("Source", url="https://github.com/onilyxe/Sofia"),
         onilyxe=TextLink("onilyxe", url="https://t.me/onilyxe"),
-        den=TextLink("den", url="https://t.me/itsokt0cry")
+        den=TextLink("den", url="https://t.me/itsokt0cry"),
+        htyvka=TextLink("хтивка", url="https://t.me/yeyevh")
     )
     tb.add("📡 Sofia {version}\n", True)
     tb.add("{news_channel}", True)
     tb.add("{source}\n", True)
-    tb.add("Made {onilyxe}. Idea {den}", True)
-    await message.reply(tb.render())
+    tb.add("Made {onilyxe}. Idea {den}. Updated {htyvka}", True)
+    await message.reply(tb.render(), disable_web_page_preview=True)
 
 
 @commands_router.message(Command("my"), IsChat())
