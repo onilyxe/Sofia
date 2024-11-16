@@ -7,9 +7,9 @@
 ------------
 ```shell
 # Клонуй репозиторій
-$ git clone https://github.com/onilyxe/Sofia.git
+$ git clone https://github.com/onilyxe/sofia.git
 
-# Змініть робочу директорію на Sofia
+# Змініть робочу директорію на sofia
 $ cd Sofia
 ```
 
