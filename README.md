@@ -37,10 +37,12 @@ MESSAGES = 4
 [SETTINGS]; True/False
 SKIPUPDATES = False
 TEST = False
+DBFILE = src/database.db
 STATUS = False
 DELETE = 3600
 RANDOMGAMES = 0.35
-VERSION = v2
+VERSION = v2.2
+DONATE = https://send.monobank.ua/jar/0000000000
 ```
 * `TOKEN` це токен для вашого Telegram-бота. Отримати його можна тут: [BotFather](https://t.me/BotFather)
 * `ADMIN` це твій ID, для адмін команд
@@ -53,10 +55,12 @@ VERSION = v2
 
 * `SKIPUPDATES` Пропускає нові повідомлення. True або False
 * `TEST` Пропускає кулдауни. True або False
+* `DBFILE` шлях до файлу бази даних
 * `STATUS` Надсилає повідомлення про запуск/зупинку. True або False
 * `DELETE` Таймер автоматичного видалення повідомлень у секундах
 * `RANDOMGAMES` Шанс виграшу в /game. 1 - завжди вигравати. 0 - ніколи. 0.5 - шанс 50/50
 * `VERSION` Версія
+* `DONATE` Посилання на донат
 
 Запуск
 ------------
