@@ -23,11 +23,10 @@ BOT = 0000000000:0000000000000000000000000000000000
 [ID]
 ADMIN = 000000000
 CHANNEL = -1000000000000
-SUPPORT = 000000000, 000000001
+SUPPORT = 000000000, 000000000, 000000000
 
 [ALIASES]
 chatname = -1000000000000
-chatnametwo = -1000000000001
 
 [SPAM]
 BAN = 10
@@ -35,14 +34,29 @@ SPEED = 5
 MESSAGES = 4
 
 [SETTINGS]; True/False
+; Пропускає нові повідомлення
 SKIPUPDATES = False
+
+; Пропускає кулдауни
 TEST = False
+
+; Файл бази даних
 DBFILE = src/database.db
-STATUS = False
-DELETE = 3600
-RANDOMGAMES = 0.35
-VERSION = v2.2
-DONATE = https://send.monobank.ua/jar/0000000000
+
+; Надсилає повідомлення про старт/стоп
+STATUS = True
+
+; Таймер видалення повідомлень у секундах
+DELETE = 120
+
+; Шанс виграшу в /game
+RANDOMGAMES = 0.45
+
+; Версія
+VERSION = v3_final
+
+; Посилання на картку
+DONATE = https://send.monobank.ua/0000000000
 ```
 * `TOKEN` це токен для вашого Telegram-бота. Отримати його можна тут: [BotFather](https://t.me/BotFather)
 * `ADMIN` це твій ID, для адмін команд
@@ -52,15 +66,6 @@ DONATE = https://send.monobank.ua/jar/0000000000
 * `BAN` Захист від спаму. Час муту у хвилинах за флуд
 * `SPEED` Час у секундах, за який потрібно надіслати повідомлення для отримання муту
 * `MESSAGES` Кількість повідомлень для отримання муту
-
-* `SKIPUPDATES` Пропускає нові повідомлення. True або False
-* `TEST` Пропускає кулдауни. True або False
-* `DBFILE` шлях до файлу бази даних
-* `STATUS` Надсилає повідомлення про запуск/зупинку. True або False
-* `DELETE` Таймер автоматичного видалення повідомлень у секундах
-* `RANDOMGAMES` Шанс виграшу в /game. 1 - завжди вигравати. 0 - ніколи. 0.5 - шанс 50/50
-* `VERSION` Версія
-* `DONATE` Посилання на донат
 
 Запуск
 ------------

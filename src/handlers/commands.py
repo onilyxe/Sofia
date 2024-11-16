@@ -20,8 +20,7 @@ bot_start_time = datetime.now()
 
 @commands_router.message(CommandStart())
 async def start(message: types.Message):
-    await message.reply(Text("🫡 Привіт. Я бот для гри в русофобію. Додавай мене в чат і розважайся. Щоб дізнатися як "
-                             "мною користуватися, вивчай /help").as_markdown())
+    await message.reply(Text("Привіт заїбав. Я жива людина для гри в русофобію. Додавай мене в чат і кури шмаль, ну і в мене грай. Щоб дізнатися як, вивчай /help").as_markdown())
 
 
 @commands_router.message(Command("about"))
@@ -32,13 +31,13 @@ async def about(message: types.Message):
         source=TextLink("Source", url="https://github.com/onilyxe/Sofia"),
         onilyxe=TextLink("onilyxe", url="https://t.me/onilyxe"),
         den=TextLink("den", url="https://t.me/itsokt0cry"),
-        htyvka=TextLink("хтивка", url="https://t.me/yeyevh")
+        htivka=TextLink("хтивка", url="https://t.me/yeyevh")
     )
     tb.add("📡 Sofia {version}\n", True)
     tb.add("{news_channel}", True)
     tb.add("{source}\n", True)
-    tb.add("Made {onilyxe}. Idea {den}. Updated {htyvka}", True)
-    await message.reply(tb.render(), disable_web_page_preview=True)
+    tb.add("Made {onilyxe}. Idea {den}. Updated {htivka}", True)
+    await message.reply(tb.render())
 
 
 @commands_router.message(Command("my"), IsChat())
@@ -48,9 +47,9 @@ async def my_command(message: types.Message, chat_user):
         message.from_user.username or message.from_user.first_name, user=message.from_user
     ))
     if russophobia:
-        tb.add("😡 {user}, твоя русофобія: {russophobia} кг", russophobia=Code(russophobia))
+        tb.add("{user}, в тебе {russophobia} кг", russophobia=Code(russophobia))
     else:
-        tb.add("😠 {user}, у тебе немає русофобії, губися")
+        tb.add("{user}, ти пограй для початку, і не роби так більше. Бо це безпосередньо показує твоє хуєве критичне мислення")
     await message.reply(tb.render())
 
 
@@ -61,17 +60,16 @@ async def leave(message: types.Message, chat_user: list):
     tb, kb = TextBuilder(user=TextMention(user.first_name, user=user)), InlineKeyboardBuilder()
 
     if russophobia:
-        tb.add("😡 {user}, ти впевнений, що хочеш проїхати свою русофобію? Твої дані зі всіх чатів буде видалено з "
-               "бази даних. Цю дію не можна буде скасувати")
+        tb.add("{user}, значить так, ебаніно ти ебана. Якщо підеш із гри, то всі твої дані (зокрема точне місце проживання тебе і всіх твоїх рідних) буде передано поважним особам. Після натискання кнопки, протягом 120 хвилин до тебе приїдуть у гості")
     else:
-        tb.add("😯 {user}, у тебе і так немає русофобії, губися")
+        tb.add("{user}, ти пограй для початку, і не роби так більше. Бо це безпосередньо показує твоє хуєве критичне мислення")
 
     kb.add(
         InlineKeyboardButton(
-            text="✅ Так", callback_data=LeaveCallback(user_id=message.from_user.id, confirm=True).pack()
+            text="Ризикнути", callback_data=LeaveCallback(user_id=message.from_user.id, confirm=True).pack()
         ),
         InlineKeyboardButton(
-            text="❌ Ні", callback_data=LeaveCallback(user_id=message.from_user.id, confirm=False).pack()
+            text="Та ну його нахуй", callback_data=LeaveCallback(user_id=message.from_user.id, confirm=False).pack()
         )
     )
 
@@ -85,16 +83,16 @@ async def leave(message: types.Message, chat_user: list):
 async def leave_callback(query: CallbackQuery, callback_data: LeaveCallback, db: Database):
     if callback_data.confirm:
         await db.user.remove_user(query.from_user.id)
-        await query.bot.answer_callback_query(query.id, "👹 Ох братику, даремно ти це зробив...")
+        await query.bot.answer_callback_query(query.id, "Передача інформації..")
         await query.bot.edit_message_text(
-            f"🤬 {query.from_user.mention_markdown()}, ти покинув гру, і тебе було видалено з бази даних",
+            f"{query.from_user.mention_markdown()}, Машинка виїжджає. Ховай усі довгасті предмети ",
             chat_id=query.message.chat.id,
             message_id=query.message.message_id
         )
     else:
-        await query.bot.answer_callback_query(query.id, "ℹ️ Cкасовуємо..")
+        await query.bot.answer_callback_query(query.id, "Кажемо хлопцям відбій")
         await query.bot.edit_message_text(
-            f"🫡 {query.from_user.mention_markdown()} красунчик, ти залишився у грі",
+            f"{query.from_user.mention_markdown()} сьогодні не зґвалтують (Може завтра?)",
             chat_id=query.message.chat.id,
             message_id=query.message.message_id
         )

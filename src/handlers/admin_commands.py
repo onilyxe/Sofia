@@ -16,7 +16,7 @@ async def chatlist_command(message: types.Message, db: Database):
     chats = await db.chat.get_chats()
     tb = TextBuilder()
     if not chats:
-        tb.add("😬 Бота не було додано до жодного чату")
+        tb.add("Бота не було додано до жодного чату. Нахуй я взагалі писав цього йобаного бота бляха")
     else:
         chat_list_lines = []
         removed_chats_info = []
@@ -34,7 +34,7 @@ async def chatlist_command(message: types.Message, db: Database):
                 removed_chats_info.append(f"🔹 {chat_id} - вилучено ({e.message})")
                 await db.chat.remove_chat(chat_id)
 
-        tb.add("💬 Список чатів бота ({chats_count}):", chats_count=total_chats_count)
+        tb.add("💬 Список чатів ({chats_count}):", chats_count=total_chats_count)
         tb.add('\n'.join(chat_list_lines), new_line=True)
         if removed_chats_info:
             tb.add("\n\n\n💢 Список вилучених чатів ({removed_chats_count}):", removed_chats_count=removed_chats_count)
@@ -51,7 +51,7 @@ async def message_command(message: types.Message, command: CommandObject, db: Da
                "{example1} - в усі чати\n"
                "{example2} - в один чат",
                example1=Code("/message [text]"),
-               example2=Code("/message [ID/alias] [text]"))
+               example2=Code("/message [id/alias] [text]"))
         await reply_and_delete(message, tb.render())
         return
 
@@ -65,7 +65,7 @@ async def message_command(message: types.Message, command: CommandObject, db: Da
         text = " ".join(parts)
 
     if not text.strip():
-        tb.add("ℹ️ Текст повідомлення не може бути пустим")
+        tb.add("Ой блять ну і їблан як мені пустоту в чати розіслати?")
         await reply_and_delete(message, tb.render())
         return
 
@@ -84,9 +84,9 @@ async def message_command(message: types.Message, command: CommandObject, db: Da
         except TelegramBadRequest as e:
             error_messages += f"{chat[0]}: {e.message}\n"
 
-    tb.add("🆒 Повідомлення надіслано. Кількість чатів: `{successful_sends}`", successful_sends=successful_sends)
+    tb.add("Усе зроблено, мій пане. Кількість чатів: `{successful_sends}`", successful_sends=successful_sends)
     if error_messages:
-        tb.add("\nℹ️ Помилки:\n{error_messages}", error_messages=error_messages, new_line=True)
+        tb.add("\nПомилки:\n{error_messages}", error_messages=error_messages, new_line=True)
 
     await reply_and_delete(message, tb.render())
 
@@ -102,11 +102,11 @@ async def edit_command(message: types.Message, db: Database, command: CommandObj
     user = get_mentioned_user(message)
 
     if not user:
-        await reply_and_delete(message, "ℹ️ Вкажіть користувача")
+        await reply_and_delete(message, "Ти реплай проїбав")
         return
 
     if user.is_bot or message.chat.type in ("private", "channel"):
-        await reply_and_delete(message, "ℹ️ Команда недоступна для каналів, ботів і в особистих повідомленнях")
+        await reply_and_delete(message, "Їбать ти придумав звісно. А нахуй піти не хочеш?")
         return
 
     user_id = user.id
@@ -120,7 +120,7 @@ async def edit_command(message: types.Message, db: Database, command: CommandObj
         if user_balance:
             tb.add("📊 {user} має {balance} кг русофобії", user=mention, balance=Code(user_balance))
         else:
-            tb.add("😬 {user} ще не має русофобії", user=mention)
+            tb.add("{user} лошара без русофобії", user=mention)
     else:
         await db.chat_user.update_user_russophobia(chat_id, user_id, value)
         tb.add("📊 {user} тепер має {balance} кг русофобії", user=mention, balance=Code(value))
@@ -135,7 +135,7 @@ async def add_command(message: types.Message, db: Database, command: CommandObje
     if command.args:
         parts = command.args.split()
     if not command.args or len(parts) < 3:
-        tb.add("ℹ️ Неправильний формат. Використовуй {example}",
+        tb.add("ℹ️ Хуйня йобана. Використовуй {example}",
                example=Code("/add chat_id user_id value"))
         await reply_and_delete(message, tb.render())
         return
@@ -145,29 +145,29 @@ async def add_command(message: types.Message, db: Database, command: CommandObje
         user_id = int(parts[1])
         value = int(parts[2])
     except (ValueError, KeyError):
-        tb.add("ℹ️ Неправильний формат. Використовуй {example}",
+        tb.add("ℹ️ Хуйня йобана. Використовуй {example}",
                example=Code("/add chat_id user_id value"))
         await reply_and_delete(message, tb.render())
         return
 
     current_value = (await db.chat_user.get_chat_user(chat_id, user_id))
     if current_value is None:
-        await reply_and_delete(message, "😬 Користувача або чат не знайдено")
+        await reply_and_delete(message, "В очі не їбись. Я шота не бачу такого піздюка або чату")
         return
     current_value = current_value[3]
     updated_value = current_value + value
 
     if updated_value < 0:
-        await reply_and_delete(message, "ℹ️ Результат не може бути від'ємним числом")
+        await reply_and_delete(message, "Може тебе блядину нахуй забанити?")
         return
 
     try:
         await db.chat_user.update_user_russophobia(chat_id, user_id, updated_value)
     except OverflowError:
-        await reply_and_delete(message, "ℹ️ Занадто велике значення\. Спробуй менше число")
+        await reply_and_delete(message, "Може тебе блядину нахуй забанити?")
         return
 
-    tb.add("🆒 Значення користувача {user_id} було змінено на {updated_value} кг",
+    tb.add("🆒 Значення {user_id} було змінено на {updated_value} кг",
            user_id=Code(user_id),
            updated_value=Code(updated_value))
     await reply_and_delete(message, tb.render())

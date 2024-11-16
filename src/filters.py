@@ -36,9 +36,9 @@ class CooldownFilter(BaseFilter):
 
         if not result and self.send_answer:
             time = get_time_until_midnight(message.date.timestamp())
-            text = "ℹ️ Ти можеш грати тільки один раз на день.\nСпробуй через {ttp}" \
+            text = "У тебе шо альцгеймер прогресує? Ти можеш грати тільки один раз на день.\nСпробуй через {ttp}" \
                 if self.is_game \
-                else "ℹ️ Ти ще не можеш передати русофобію.\nСпробуй через {ttp}"
+                else "Для довбанів кажу, ти ще не можеш передати русофобію.\nСпробуй через {ttp}"
             text = TextBuilder(text, ttp=Code(time))
             await message.reply(text.render(ParseMode.MARKDOWN_V2))
         return result
@@ -88,5 +88,5 @@ class IsCurrentUser(BaseFilter):
     async def __call__(self, callback: types.CallbackQuery, callback_data):
         result = callback.from_user.id == callback_data.user_id
         if not result and self.send_callback:
-            await callback.bot.answer_callback_query(callback.id, "❌ Ці кнопочки не для тебе!", show_alert=True)
+            await callback.bot.answer_callback_query(callback.id, "❌ Ці кнопочки не для тебе, пішов нахуй бидло йобане", show_alert=True)
         return result

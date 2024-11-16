@@ -50,4 +50,4 @@ async def settings_callback(query: CallbackQuery, callback_data: SettingsCallbac
         await query.message.edit_reply_markup(reply_markup=kb.as_markup())
     except TelegramBadRequest:
         pass
-    await query.bot.answer_callback_query(query.id, "🔧 Налаштування змінено")
+    await query.bot.answer_callback_query(query.id, "🔧 Налаштування змінено. Я пішла хапати")

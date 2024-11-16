@@ -20,7 +20,7 @@ from src.utils.utils import process_regular_bet
 async def bowling_command(message: types.Message, chat_user):
     tb, kb = TextBuilder(), InlineKeyboardBuilder()
     kb.row(*get_bet_buttons(message.from_user.id, Games.BOWLING), width=2)
-    tb.add("🎳 {user}, зіграй у боулінг\nВибери ставку\n\n🏷️ У тебе: {balance} кг\n",
+    tb.add("🎳 {user}, це лохотрон, відповідаю\nВибери ставку\n\n🏷️ У тебе: {balance} кг\n",
            user=TextMention(message.from_user.first_name, user=message.from_user),
            balance=Code(chat_user[3]))
     await message.answer(tb.render(), reply_markup=kb.as_markup())
@@ -38,7 +38,7 @@ async def bowling_callback_bet_play(callback: types.CallbackQuery,
     balance = chat_user[3]
     chat_id = callback.message.chat.id
     current_time = int(time.time())
-    await callback.message.edit_text(Text("🎳 Ловимо рівновагу..").as_markdown())
+    await callback.message.edit_text(Text("🎳 Опускаю мокрий. А бля це хуйло грає, ща..").as_markdown())
 
     user = TextMention(callback.from_user.first_name, user=callback.from_user)
     bowling_value = (await callback.message.reply_dice(emoji='🎳')).dice.value
@@ -48,17 +48,17 @@ async def bowling_callback_bet_play(callback: types.CallbackQuery,
     if bowling_value == 6:
         bet_won = math.ceil(callback_data.bet * 1.5)
         new_balance = balance + bet_won
-        tb.add("🏆 {user}, точне попадання!")
+        tb.add("🏆 {user}, красава")
         tb.add("🎳 Ти виграв(ла): {bet_won} кг\n", True, bet_won=Code(bet_won))
         tb.add("🏷️ Тепер у тебе: {new_balance} кг", True, new_balance=Code(new_balance))
     else:
         new_balance = balance - callback_data.bet
-        tb.add("😔 {user}, ти не влучив(ла).")
+        tb.add("😔 {user}, стрибни з мосту будь ласка☺️")
         tb.add("🎳 Втрата: {bet} кг\n", True, bet=Code(callback_data.bet))
         tb.add("🏷️ Тепер у тебе: {new_balance} кг", True, new_balance=Code(new_balance))
     await asyncio.sleep(4)
     try:
-        await callback.bot.answer_callback_query(callback.id, "🎳 Шар кинуто")
+        await callback.bot.answer_callback_query(callback.id, "Я обожнюю шишечки")
         await callback.message.edit_text(tb.render())
     except TelegramRetryAfter:
         pass
@@ -69,6 +69,6 @@ async def bowling_callback_bet_play(callback: types.CallbackQuery,
 
 @games_router.callback_query(BowlingCallback.filter(F.action == BaseGameEnum.CANCEL), IsCurrentUser(True))
 async def bowling_callback_bet_cancel(callback: types.CallbackQuery, callback_data: BowlingCallback):
-    await callback.bot.answer_callback_query(callback.id, "ℹ️ Скасовую гру..")
+    await callback.bot.answer_callback_query(callback.id, "ℹ️ Шльондра злилася..")
     await callback.message.edit_text(TextBuilder("ℹ️ Гру скасовано. Твої {bet} кг повернуто",
                                                  bet=callback_data.bet).render())

@@ -23,12 +23,11 @@ async def give(message: types.Message, command: CommandObject, db: Database, cha
             or message.reply_to_message.from_user.is_bot
             or not args or len(args := args.split()) != 1
     ):
-        tb.add("ℹ️ Використовуй {cmd} у відповідь на повідомлення", cmd=Code(f"/give N"))
+        tb.add("Ну і баран. Приклад:  {cmd}. Не забудь про реплай", cmd=Code(f"/give N"))
         await reply_and_delete(message, tb.render())
         return
     if not (value := args[0]).isdigit() or (value := int(value)) == 0:
-        tb.add("🤨 Типу розумний, так? Введи плюсове і ціле число. Наприклад: {cmd} у відповідь на повідомлення",
-               cmd=Code(f"/give N"))
+        tb.add("Гнида, йди нахуй")
         await reply_and_delete(message, tb.render())
         return
 
@@ -40,12 +39,12 @@ async def give(message: types.Message, command: CommandObject, db: Database, cha
     receiver = await db.chat_user.get_chat_user(message.chat.id, receiver_id)
 
     if not giver or giver[3] < value:
-        tb.add("ℹ️ У тебе {russophobia} кг. Цього недостатньо", russophobia=Code(giver[3] if giver else 0))
+        tb.add("ℹ️ У тебе {russophobia} кг. Бомжара ахахахха", russophobia=Code(giver[3] if giver else 0))
         await reply_and_delete(message, tb.render())
         return
 
     if not receiver:
-        tb.add("ℹ️ Цей користувач не грає в русофобію")
+        tb.add("Ця чортила обісрана не грає")
         await reply_and_delete(message, tb.render())
         return
 
@@ -53,10 +52,10 @@ async def give(message: types.Message, command: CommandObject, db: Database, cha
     yes = GiveCallback(user_id=giver_id, receiver_id=receiver_id, value=value,
                        receiver_balance=receiver[3], action=GiveEnum.YES)
     no = GiveCallback(user_id=giver_id, receiver_id=0, value=0, receiver_balance=0, action=GiveEnum.NO)
-    kb.row(InlineKeyboardButton(text="✅ Так", callback_data=yes.pack()))
-    kb.row(InlineKeyboardButton(text="❌ Ні", callback_data=no.pack()))
+    kb.row(InlineKeyboardButton(text="✅ Го", callback_data=yes.pack()))
+    kb.row(InlineKeyboardButton(text="❌ Нахуй", callback_data=no.pack()))
 
-    tb.add("🔄 {giver} збирається передати {value} кг русофобії {receiver}. \n🏷️ В тебе: {current_value} кг",
+    tb.add("🔄 {giver} збирається хапанути, ой не то, передати {value} кг русофобії {receiver}. \n🏷️ В тебе: {current_value} кг",
            value=Code(value), giver=TextMention(message.from_user.first_name, user=message.from_user),
            receiver=TextMention(receiver_user.first_name, user=receiver_user), current_value=Code(giver[3]))
 
@@ -82,7 +81,7 @@ async def give_yes(query: CallbackQuery, callback_data: GiveCallback, db: Databa
            receiver=TextMention(receiver.user.first_name, user=receiver.user))
 
     try:
-        await query.bot.answer_callback_query(query.id, "ℹ️ Переказую кг..")
+        await query.bot.answer_callback_query(query.id, "Хулі читаєш, лох")
         await query.message.edit_text(tb.render())
     except TelegramBadRequest:
         pass
@@ -94,5 +93,5 @@ async def give_yes(query: CallbackQuery, callback_data: GiveCallback, db: Databa
 
 @commands_router.callback_query(GiveCallback.filter((F.action == GiveEnum.NO)), IsCurrentUser(True), )
 async def give_yes(query: CallbackQuery):
-    await query.bot.answer_callback_query(query.id, "ℹ️ Скасовую..")
-    await query.message.edit_text("🔄 Передача русофобії скасована")
+    await query.bot.answer_callback_query(query.id, "Ой бляха заїбали передумувати..")
+    await query.message.edit_text("🔄 Охорона все скасувала")

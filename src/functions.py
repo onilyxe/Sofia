@@ -13,29 +13,29 @@ async def setup_database():
 async def startup(bot: Bot):
     await setup_database()
     commands = [
-        types.BotCommand(command="/killru", description="Спробувати підвищити свою русофобію"),
-        types.BotCommand(command="/my", description="Моя русофобія"),
-        types.BotCommand(command="/game", description="Знайди і вбий москаля"),
-        types.BotCommand(command="/dice", description="Міні гра, кинь кістки"),
-        types.BotCommand(command="/darts", description="Гра в дартс"),
-        types.BotCommand(command="/basketball", description="Гра в баскетбол"),
-        types.BotCommand(command="/football", description="Гра у футбол"),
-        types.BotCommand(command="/bowling", description="Гра в боулінг"),
-        types.BotCommand(command="/casino", description="Гра в казино"),
-        types.BotCommand(command="/help", description="Допомога"),
-        types.BotCommand(command="/settings", description="Тільки для адмінів чату"),
-        types.BotCommand(command="/give", description="Поділиться русофобією"),
-        types.BotCommand(command="/top10", description="Топ 10 гравців"),
-        types.BotCommand(command="/top", description="Топ гравців"),
-        types.BotCommand(command="/globaltop10", description="Топ 10 серед всіх гравців"),
-        types.BotCommand(command="/globaltop", description="Топ всіх гравців"),
-        types.BotCommand(command="/leave", description="Покинути гру"),
-        types.BotCommand(command="/about", description="Про бота"),
-        types.BotCommand(command="/ping", description="Статус бота"),
+        types.BotCommand(command="/killru", description="підвищити свою русофобію"),
+        types.BotCommand(command="/my", description="моя русофобія"),
+        types.BotCommand(command="/game", description="вбий москаля"),
+        types.BotCommand(command="/dice", description="кинь кістки"),
+        types.BotCommand(command="/darts", description="дартс"),
+        types.BotCommand(command="/basketball", description="баскетбол"),
+        types.BotCommand(command="/football", description="футбол"),
+        types.BotCommand(command="/bowling", description="боулінг"),
+        types.BotCommand(command="/casino", description="казино"),
+        types.BotCommand(command="/help", description="довідка"),
+        types.BotCommand(command="/give", description="передати русофобію"),
+        types.BotCommand(command="/top10", description="топ 10"),
+        types.BotCommand(command="/top", description="топ"),
+        types.BotCommand(command="/globaltop10", description="глобальний топ 10"),
+        types.BotCommand(command="/globaltop", description="глобальний топ"),
+        types.BotCommand(command="/leave", description="покинути гру"),
+        types.BotCommand(command="/about", description="про бота"),
+        types.BotCommand(command="/ping", description="статус бота"),
     ]
 
     await bot.set_my_commands(commands)
     if config.STATUS:
+        print("Бот запущений")
         try:
             await bot.send_message(config.CHANNEL, f"🚀 Бот запущений")
         except Exception as e:

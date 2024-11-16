@@ -20,7 +20,7 @@ from src.utils import TextBuilder, get_bet_buttons, is_can_play
 async def dice_command(message: types.Message, chat_user):
     tb, kb = TextBuilder(), InlineKeyboardBuilder()
     kb.row(*get_bet_buttons(message.from_user.id, Games.DICE), width=2)
-    tb.add("🎲 {user}, зіграй у кості\nВибери ставку\n\n🏷️ У тебе: {balance} кг\n",
+    tb.add("🎲 {user}, якщо програєш,\nто заплатиш адміну через /shop\nВибери ставку\n\n🏷️ У тебе: {balance} кг\n",
            user=TextMention(message.from_user.first_name, user=message.from_user),
            balance=Code(chat_user[3]))
     await message.answer(tb.render(), reply_markup=kb.as_markup())
@@ -44,9 +44,9 @@ async def dice_callback_bet(callback: types.CallbackQuery, callback_data: BetCal
 
     kb.row(InlineKeyboardButton(text="➗ Парне", callback_data=even.pack()),
            InlineKeyboardButton(text="✖️ Непарне", callback_data=odd.pack()),
-           InlineKeyboardButton(text="❌ Відміна", callback_data=cancel.pack()), width=2)
+           InlineKeyboardButton(text="❌ Злитися", callback_data=cancel.pack()), width=2)
 
-    tb.add("🎲 {user}, зроби свій вибір:\n", user=TextMention(user.first_name, user=user))
+    tb.add("🎲 {user}, роби вибір:\n", user=TextMention(user.first_name, user=user))
     tb.add("🏷️ Твоя ставка: {bet} кг", True, bet=Code(bet))
     tb.add("💰 Можливий виграш: {potential_win} кг", True, potential_win=Code(potential_win))
 
@@ -58,7 +58,7 @@ async def dice_callback_bet_play(callback: types.CallbackQuery, callback_data: D
     balance = chat_user[3]
     chat_id = callback.message.chat.id
     current_time = int(time.time())
-    await callback.message.edit_text(Text("🎲 Кидаємо кубик..").as_markdown())
+    await callback.message.edit_text(Text("🎲 Кумедний факт хто кістки: Ти довбойоб").as_markdown())
 
     user = TextMention(callback.from_user.first_name, user=callback.from_user)
     dice_value = (await callback.message.reply_dice()).dice.value
@@ -69,17 +69,17 @@ async def dice_callback_bet_play(callback: types.CallbackQuery, callback_data: D
     if dice_value % 2 == parity:
         bet_won = math.ceil(callback_data.bet * 1.5)
         new_balance = balance + bet_won
-        tb.add("🏆 {user}, ти виграв(ла)! Випало {dice_value}, {parity}")
+        tb.add("🏆 {user}, красава. Випало {dice_value}, {parity}")
         tb.add("🎲 Твій виграш: {bet_won} кг\n", True, bet_won=Code(bet_won))
         tb.add("🏷️ Тепер у тебе: {new_balance} кг", True, new_balance=Code(new_balance))
     else:
         new_balance = balance - callback_data.bet
-        tb.add("😔 {user}, ти програв(ла). Випало {dice_value}, {parity}")
+        tb.add("😔 {user}, лох {dice_value}, {parity}")
         tb.add("🎲 Втрата: {bet} кг\n", True, bet=Code(callback_data.bet))
         tb.add("🏷️ Тепер у тебе: {new_balance} кг", True, new_balance=Code(new_balance))
     await asyncio.sleep(4)
     try:
-        await callback.bot.answer_callback_query(callback.id, "🎲 Кубик кинуто")
+        await callback.bot.answer_callback_query(callback.id, "Навіщо придумали повітря, якщо є шмаль?")
         await callback.message.edit_text(tb.render())
     except TelegramRetryAfter:
         pass
@@ -90,6 +90,6 @@ async def dice_callback_bet_play(callback: types.CallbackQuery, callback_data: D
 
 @games_router.callback_query(DiceCallback.filter(F.parity == DiceParityEnum.CANCEL), IsCurrentUser(True))
 async def dice_callback_bet_cancel(callback: types.CallbackQuery, callback_data: DiceCallback):
-    await callback.bot.answer_callback_query(callback.id, "ℹ️ Скасовую гру..")
+    await callback.bot.answer_callback_query(callback.id, "ℹ️ Шльондра злилася..")
     await callback.message.edit_text(TextBuilder("ℹ️ Гру скасовано. Твої {bet} кг повернуто",
                                                  bet=callback_data.bet).render())
